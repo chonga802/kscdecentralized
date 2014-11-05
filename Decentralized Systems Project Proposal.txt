@@ -1,0 +1,51 @@
+Decentralized Systems Project Proposal
+
+BitTorrent Protocol with Reputation-based Security
+
+Christine Hong, Sage Price, and Kojiro Murase
+
+Overview:
+
+We wish to build a fault-tolerant, decentralized file sharing system based on BitTorrent, which will make use of a reputation-system in deciding seeding and tracking procedures.
+
+Core idea (derived from BitTorrent):
+When a file is uploaded to the network, other nodes will be able to download the file. These will serve as seeds. When someone requests a file for download, tracker nodes will give the requester a list of seeds to download from. The downloader will then request data from all these seeds simultaneously, speeding download and spreading work across the network.
+
+Alternate idea (FreeNet):
+When a node chooses to share a file, its file is split into parts and then the parts are shared among other multiple nodes. This allows the file to still be available in the network even if the one who originally uploads the data leaves the network (since other nodes have the file). The data would be separated so that the memory load on each node is reduced so each peer wouldn’t have to hold all of the data for a file in memory. Multiple copies of each part of a file would be shared around the network, which would add further redundancy.
+
+There would also be a ranking system used to determine which peers to split the file among. There is a reputation system for peers so parts of file are shared only among top rated peers. 
+
+Functions of System:
+
+We plan to implement a mechanism for sharing files inspired by the BitTorrent protocol and incorporating a reputation system.  Files are divided into blocks, which are identified by SHA-1 hashes (like the Peerster implemented in class).  Unlike the class Peerster though, a user requiring a file will download it from multiple peers and non-sequentially.  
+These two features we will add ensures more even distribution of loads on seeding peers when multiple peers request a file and greater robustness in the download mechanism. If a peer is missing a block, the downloader can simply request the block from a different peer instead of stopping the entire download.
+Each file will have an identifier structure composed of three components: 1) The file name; 2) The metafile; 3) A short list of “tracker nodes” for the file.  The file’s tracker nodes are simply nodes that are responsible for two pieces of information: the file’s concatenated block hashes, and a list of all of the nodes on the network (“seeders”) that hold copies of that file.
+
+Download process:
+
+The client node will keep track of the file identifiers that have been broadcast to it by peers.  These are the files that it knows are available for download.  When a client wants to download a particular file, it sends a request to one of the file’s tracker nodes.  This tracker node will respond with the file’s block hash and list of seeders.
+The client now begins the download process by sending requests for blocks of the file to all of the seeders at once.  The blocks will be requested not sequentially, but in random order, so many blocks can be requested simultaneously.  The client will then receive replies to its requests in no particular order.  As in our earlier Peerster implementation, the client will use SHA-1 hashes to verify the validity of replies and then store the file block in order according to the index.  Once all of the blocks needed have been stored, the client will be able to reconstruct the file.
+As soon as it begins downloading a file, a client is itself a seeder.  The tracker node will therefore take note of this fact and associate the client with the file.
+
+Upload process:
+
+Block requests will be composed of 1) The metafile hash, 2) The hash of the block requested, and 3) The index of that hash within the concatenation of the block hashes.  If a client has the requested block, it sends back a block reply consisting of 1) The metafile hash, 2) The hash of the block requested, 3) The index of that hash within the concatenation of the block hashes, and 4) The block itself.  If the client does not have the requested block (perhaps because the client itself is still in the process of downloading the file), the requesting node will ask a different seeder for that block.
+Our implementation ensures not just a robust download process, but also well-distributed workload among uploaders.  It does so by capping upload bandwidth for each node.  At any given time, a node will handle requests for only a certain number of files.  If a node is at capacity, any further requests will be dropped or forwarded to a new node.
+
+Reputation:
+
+We plan to also build in a reputation system for determining what nodes are reliable uploaders.  Based on feedback from downloaders, tracking nodes will continually reassess the performance of seeders.  If a seeder appears to be unable to properly upload pieces of a file, the tracker will remove that seeder from the list of seeders for the file.  The equation that we will use for determining whether or not to remove seeders is still undetermined.
+
+Deliverables: tracker system, upload/download process, especially randomized storage, reputation
+
+Part I am Working On:
+
+Implement file uploading, UI for BitTorrent protocol, and system updates (when node leaves network, node finishes downloading and becomes seeder, etc.)
+
+For file upload, I’ll need to ensure well-distributed workload among uploaders by capping upload bandwidth for each node.  To do this, I’ll keep a prioritized queue of nodes, sorted by upload bandwidth of each node. Whenever a node uploads a file, file is broken up into blocks and blocks (along with block hash, block index, and fileID) will be distributed to nodes with current lowest bandwidth in queue. For redundancy, multiple copies of each block can be sent to different nodes.
+
+To implement system updates, there will be an additional data structure within network outside the nodes that keeps track of how many nodes are currently in network and which are seeders.
+
+
+
