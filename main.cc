@@ -136,6 +136,7 @@ ChatDialog::ChatDialog(QStringList args)
 
 	seqNo = 1;
 	downloading = false;
+	nonSeqDL = false;
 
 	wantedSeqNos = new QMap<QString, quint32>();
 	wantedSeqNos->insert(myOrigin, seqNo);
@@ -246,9 +247,6 @@ void ChatDialog::addFilesForSharing(QStringList files)
 
 void ChatDialog::sendPrivateMessage(QString text, QString target)
 {
-	//qDebug() << "MY PRIVATE TABLE";
-	//qDebug() << dsdv;
-
 	QVariantMap msg;
 	msg.insert(DEST, target);
 	msg.insert(ORIGIN, myOrigin);
@@ -351,14 +349,13 @@ void ChatDialog::gotReturnPressed()
 	msg.insert(ORIGIN, myOrigin);
 	msg.insert(SEQNO, seqNo++);
 	wantedSeqNos->insert(myOrigin, seqNo);
-
 	updateReadMsgs(myOrigin, seqNo-1, QVariant(msg));
 
 	send(serializeMsg(msg), getRandomPeer());
 
 	textview->append(userInput->toPlainText());
-	userInput->clear();
 
+	userInput->clear();
 	addTimer();
 }
 
@@ -416,12 +413,9 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 	else if (msg.contains(DEST)) {
 		QString dest = msg.value(DEST).toString();
 
-		// this node is target
 		if (dest == myOrigin) {
-			// private message
 			if (msg.contains(CHAT_TEXT))
 				printRumor(msg);
-			// file sharing
 			else if (msg.contains(BLOCK_REQUEST))
 				processBlockRequest(msg);
 			else if (msg.contains(BLOCK_REPLY))
@@ -473,8 +467,7 @@ void ChatDialog::createSearchRequest()
 
 void ChatDialog::resendSearch()
 {
-	if ((lastSearch.value(BUDGET).toUInt() > 99) ||
-				(searchResponses.size() > 9))
+	if ((lastSearch.value(BUDGET).toUInt() > 99) || (searchResponses.size() > 9))
 		searchTimer->stop();
 	else {
 		quint32 newBudget = lastSearch.value(BUDGET).toUInt();
@@ -487,7 +480,7 @@ void ChatDialog::resendSearch()
 
 void ChatDialog::processSearchRequest(QVariantMap request)
 {
-	// why would we respond to our own search request? drop it
+	// drop own search requests
 	if (request.value(ORIGIN).toString() == myOrigin)
 		;
 	else {
@@ -571,6 +564,73 @@ void ChatDialog::processSearchReply(QVariantMap request)
 //		Start download
 //////////////////////////////////////////////////////////////
 
+
+////// NON-SEQUENTIAL, MUTLI-PEER DOWNLOAD GOES HERE /////////
+/*
+// initiate non-sequential download
+void ChatDialog::startNonSeqDL() {
+	// Get bytes needed
+	// fill blocks wanted with nums of blocks
+	// fix nonSeqDL bool
+	// call requestBlocks
+	// start timer, link to requestBlocks
+}
+
+// slot called on timer to request remaining blocks
+void ChatDialog::requestNonSeqBlocks() {
+	if (dlBlocksWanted.isEmpty()) {
+		finishNonSeqDL();
+	}
+	else {
+		foreach (quint32 blockNum, dlBlocksWanted) {
+			QString randSeeder = getRandomSeeder(seeders);
+			QVariantMap request;
+			request.insert(DEST, randSeeder);
+			request.insert(ORIGIN, myOrigin);
+			request.insert(HOP_LIMIT, 20);
+			// need to add method to get bytes for num
+			request.insert(BLOCK_REQUEST, currentDL.getHashBytes(blockNum)); 
+		}
+	}
+}
+
+// called only when doing non-seq dl, called by normal dl method
+void ChatDialog::processNonSeqBlockResponse(QVariantMap response) {
+	QByteArray data = response.value(DATA).toByteArray();
+	QByteArray hashedData = QCA::Hash("sha1").hash(data).toByteArray();
+	if (hashedData != reply.value(BLOCK_REPLY).toByteArray()) {
+		qDebug() << "ERROR: data returned does not match hash";
+		qDebug() << hashedData.toHex();
+		qDebug() << reply.value(BLOCK_REPLY).toByteArray().toHex();
+		failedDLNum++;
+	}
+	quint32 blockNum = currentDL.findBytesIndex(hashedData);
+	dlBlocks.insert(blockNum, data);
+	dlBlocksWanted.remove(blockNum);
+}
+
+void ChatDialog::finishNonSeqDL() {
+	QByteArray allBytes;
+	QByteArray blockBytes;
+	quint32 blockNum;
+
+	while (dlBlocks.contains(blockNum)) {
+		blockBytes = dlBlocks.value(blockNum);
+		allBytes.append(blockBytes);
+		blockNum++;
+	}
+
+	qDebug() << "DONE WITH NON-SEQUENTIAL DOWNLOAD";
+	QFile tempFile(currentDL.getFileName());
+	tempFile.open(QIODevice::WriteOnly);
+	tempFile.write(allBytes);
+	tempFile.close();
+
+	nonSeqDL = false;
+	downloading = false;
+}
+*/
+//////////////////////// NORMAL DOWNLOADS ///////////////////////
 void ChatDialog::initiateDownload(QListWidgetItem *clicked)
 {
 	QString file = clicked->text();
@@ -699,6 +759,11 @@ void ChatDialog::processBlockReply(QVariantMap reply)
 		qDebug() << reply.value(BLOCK_REPLY).toByteArray().toHex();
 		failedDLNum++;
 	}
+/*
+	else if (nonSeqDL) {
+		processNonSeqBlockResponse(reply);
+	}
+*/
 	else {
 		if (currentDL.getLastRequested() == reply.value(BLOCK_REPLY).toByteArray()) {
 			killRequestTimer();

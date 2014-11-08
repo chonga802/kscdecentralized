@@ -49,6 +49,11 @@ public:
 
 	void updateDSDV(QString, QHostAddress, quint16);
 
+	// For non-seq downloads
+	void startNonSeqDL();
+	void processNonSeqBlockResponse(QVariantMap response);
+	void finishNonSeqDL();
+
 public slots:
 	void gotReturnPressed();
 	void incomingMessage();
@@ -71,6 +76,9 @@ public slots:
 	void startDownload();
 	void startDownload(QString, QString);
 	void initiateDownload(QListWidgetItem*);
+
+	// For non-seq downloads
+//	void requestNonSeqBlocks();
 
 private:
 	QString myOrigin;
@@ -104,6 +112,12 @@ private:
 
 	QHash<QString, QPair<QString, QByteArray> > wantToDL;
 	QList<QString> foundForDL;
+
+	// for non-seq dl
+	QList<quint32> dlBlocksWanted;
+	QMap<quint32, QByteArray> dlBlocks;
+	bool nonSeqDL;
+	QStringList seeders;
 
 	QVariantMap lastSearch;
 	QTimer *searchTimer;
