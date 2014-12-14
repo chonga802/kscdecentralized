@@ -94,9 +94,9 @@ DIST          = /usr/lib64/qt4/mkspecs/common/unix.conf \
 		/usr/lib64/qt4/mkspecs/features/lex.prf \
 		/usr/lib64/qt4/mkspecs/features/include_source_dir.prf \
 		peerster.pro
-QMAKE_TARGET  = peerster
+QMAKE_TARGET  = BitTorrEnnant
 DESTDIR       = 
-TARGET        = peerster
+TARGET        = BitTorrEnnant
 
 first: all
 ####### Implicit rules

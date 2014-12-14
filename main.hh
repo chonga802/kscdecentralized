@@ -9,6 +9,8 @@
 #include <QQueue>
 #include <QHostInfo>
 #include <QListWidget>
+#include <QGridLayout>
+#include <QLabel>
 
 #include "NetSocket.hh"
 #include "Peer.hh"
@@ -16,6 +18,27 @@
 #include "FileMetadata.hh"
 #include "TrackedFileMetadata.hh"
 
+
+class InitDialog : public QDialog
+{
+	Q_OBJECT
+
+public:
+	InitDialog();
+
+private:
+	QGridLayout *layout;
+	QLineEdit *peerEntry;
+	QLabel* peerLabel;
+	QLineEdit *idEntry;
+	QLabel* idLabel;
+	QGridLayout* fullLayout;
+	QPushButton *goButton;
+
+public slots:
+	void loadID();
+
+};
 
 class ChatDialog : public QDialog
 {

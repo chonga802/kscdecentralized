@@ -50,9 +50,53 @@ QString MATCH_IDS = "MatchIDs";
 // ChatDialog
 ////////////////////////////////////////////////////////////////
 
-//ChatDialog::InitDialog(QStringList args) {
+InitDialog::InitDialog() {
 
-//}
+	layout = new QGridLayout();
+
+	peerEntry = new QLineEdit();
+	peerLabel = new QLabel("Join at:", peerEntry);
+
+	idEntry = new QLineEdit();
+	idLabel = new QLabel("Your ID:", idEntry);
+
+	goButton = new QPushButton("Initialize BitTorrEnnant", this);
+
+	layout->addWidget(idLabel, 1, 0);
+	layout->addWidget(idEntry, 2, 0);
+	layout->addWidget(peerLabel, 1, 1);
+	layout->addWidget(peerEntry, 2, 1);
+
+	fullLayout = new QGridLayout();
+	fullLayout->addLayout(layout,0,0);
+	fullLayout->addWidget(goButton,1,0);
+
+	setLayout(fullLayout);
+	connect(goButton, SIGNAL(clicked()), this, SLOT(loadID()));
+
+}
+
+void InitDialog::loadID() {
+
+	QString id = idEntry->text();
+	QString p = peerEntry->text();
+
+	fullLayout->removeItem(layout);
+	fullLayout->removeWidget(goButton);
+
+	delete layout;
+	delete goButton;
+	delete idLabel;
+	delete idEntry;
+	delete peerLabel;
+	delete peerEntry;
+
+	setLayout(fullLayout);
+
+
+
+}
+
 
 ChatDialog::ChatDialog(QStringList args)
 {
@@ -120,15 +164,15 @@ ChatDialog::ChatDialog(QStringList args)
 	files->addWidget(shareButton);
 
 
-//    QPixmap pixmap(100,100);
-  //  pixmap.fill(QColor("transparent"));
+    QPixmap pixmap(100,100);
+    pixmap.fill(QColor("transparent"));
 
-//    QPainter painter(&pixmap);
-//    painter.setBrush(QBrush(Qt::black));
-//    painter.drawRect(20, 10, 100, 100);
+    QPainter painter(&pixmap);
+    painter.setBrush(QBrush(Qt::black));
+    painter.drawRect(20, 10, 100, 100);
 
-//    QLabel* al = new QLabel;
- //   al->setPixmap(pixmap);
+    QLabel* al = new QLabel;
+    al->setPixmap(pixmap);
 
 
 
@@ -143,7 +187,7 @@ ChatDialog::ChatDialog(QStringList args)
 	// resize
 	layout->addLayout(textAndPeers, 1, 0);
 	layout->addLayout(fileEntry, 1, 1);
-//	layout->addWidget(al, 1, 2);
+	layout->addWidget(al, 1, 2);
 	layout->setColumnStretch(0, 1);
 	layout->setColumnStretch(1, 2);
 	layout->setColumnStretch(2, 2);
@@ -190,7 +234,6 @@ ChatDialog::ChatDialog(QStringList args)
 			this, SLOT(requestSeeders(QListWidgetItem *)));
 
 	timerQueue = new QQueue<QTimer *>();
-
 	entropyTimer = new QTimer(this);
 	connect(entropyTimer, SIGNAL(timeout()), this, SLOT(preventEntropy()));
 	entropyTimer->start(10000);
@@ -285,7 +328,7 @@ void ChatDialog::sendBroadcast()
 
 	foreach(TrackedFileMetadata tracked, filesTracking) {
 		fileData.insert(tracked.fileName, tracked.seederCount);
-		qDebug() << tracked.fileName + QString::number(tracked.blockCount);
+		qDebug() << tracked.fileName + " " + QString::number(tracked.seederCount);
     }
 
 	msg.insert("Broadcast", fileData);
@@ -305,10 +348,15 @@ void ChatDialog::readBroadcast(QVariantMap msg)
 
 	while (mapIter.hasNext()) {
 		mapIter.next();
-
 		if (!availableFiles.contains(mapIter.key())) {
 			availableFiles[mapIter.key()] = origin;
-			QString display = mapIter.key() + "                     " + QString::number(mapIter.value().toInt());
+			QString pad = " ";
+			int padsize = 40 - mapIter.key().size();// - QString::number(mapIter.value().toInt()).size();
+
+			for (int i = 0; i < padsize; i++) {
+				pad = pad + " ";
+			}
+			QString display = mapIter.key() + pad + QString::number(mapIter.value().toInt());
 			dlList->addItem(new QListWidgetItem(display));
 		}
 	}
@@ -350,6 +398,28 @@ void ChatDialog::replySeeders(QVariantMap msg)
 	request.insert("SeedReply", msg["SeedRequest"]);
 	TrackedFileMetadata *found;
 
+	QMutableListIterator<TrackedFileMetadata> i(filesTracking);
+	while (i.hasNext()) {
+		found = &i.next();
+		if (found->fileName == msg["SeedRequest"].toString()) {
+			request.insert("MetaFileID", found->metaHash);
+			request.insert("BlockListHash", found->blocklistHash);
+			request.insert("Seeders", found->seeders);
+			request.insert("BlockCount", found->blockCount);
+			
+			QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
+			send(serializeMsg(request), Peer(dest.first, dest.second));
+
+			qDebug() << "SENDING SEED REPLY";
+
+			found->seederCount++;
+			found->seeders.append(msg[ORIGIN].toString());
+
+			qDebug() << found->fileName + " " + QString::number(found->seederCount);
+			return;
+		}
+	}
+	/*
 	foreach(TrackedFileMetadata tracked, filesTracking) {
 		if (tracked.fileName == msg["SeedRequest"].toString()) {
 			request.insert("MetaFileID", tracked.metaHash);
@@ -357,14 +427,19 @@ void ChatDialog::replySeeders(QVariantMap msg)
 			request.insert("Seeders", tracked.seeders);
 			request.insert("BlockCount", tracked.blockCount);
 			found = &tracked;
+			
+			QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
+			send(serializeMsg(request), Peer(dest.first, dest.second));
+
+			qDebug() << "SENDING SEED REPLY";
+
+			tracked.seederCount++;
+			tracked.seeders.append(msg[ORIGIN].toString());
+
+			qDebug() << tracked.fileName + " " + QString::number(tracked.seederCount);
+			return;
 		}
-	}
-
-	QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
-	send(serializeMsg(request), Peer(dest.first, dest.second));
-
-	found->seederCount++;
-	found->seeders.append(msg[ORIGIN].toString());
+	}*/
 }
 
 
@@ -704,6 +779,9 @@ void ChatDialog::beginTorrent(QVariantMap msg) {
 
 
 }
+
+
+
 
 ////// NON-SEQUENTIAL, MUTLI-PEER DOWNLOAD GOES HERE /////////
 /*
@@ -1301,8 +1379,8 @@ int main(int argc, char **argv)
 	args.removeFirst();
 
 	// Create an initial chat dialog window
-	ChatDialog dialog(args);
-	dialog.show();
+	InitDialog *dialog = new InitDialog();
+	dialog->show();
 
 	// Enter the Qt main loop; everything else is event driven
 	return app.exec();
