@@ -80,7 +80,8 @@ public slots:
 
 	void startDownload();
 	void startDownload(QString, QString);
-	void initiateDownload(QListWidgetItem*);
+	void requestSeeders(QListWidgetItem*);
+	void replySeeders(QVariantMap msg);
 
 	// For non-seq downloads
 //	void requestNonSeqBlocks();
@@ -117,7 +118,8 @@ private:
 
 	// Files this node is tracking
 	QList<TrackedFileMetadata> filesTracking;
-
+	QMap<QString, QString> availableFiles;
+	
 	QHash<QString, QPair<QString, QByteArray> > wantToDL;
 	QList<QString> foundForDL;
 

@@ -16,6 +16,7 @@
 #include <QFileDialog>
 #include <QtCrypto>
 #include <QCryptographicHash>
+ #include <QPainter>
 
 #include "main.hh"
 #include "NetSocket.hh"
@@ -119,6 +120,19 @@ ChatDialog::ChatDialog(QStringList args)
 	files->addWidget(shareButton);
 
 
+//    QPixmap pixmap(100,100);
+  //  pixmap.fill(QColor("transparent"));
+
+//    QPainter painter(&pixmap);
+//    painter.setBrush(QBrush(Qt::black));
+//    painter.drawRect(20, 10, 100, 100);
+
+//    QLabel* al = new QLabel;
+ //   al->setPixmap(pixmap);
+
+
+
+
 	QVBoxLayout *fileEntry = new QVBoxLayout();
 	fileEntry->addWidget(dlLabel);
 	fileEntry->addWidget(dlList);
@@ -127,9 +141,9 @@ ChatDialog::ChatDialog(QStringList args)
 	fileEntry->addLayout(files);
 
 	// resize
-//	layout->addWidget(textview, 0, 0, 1, -1);
 	layout->addLayout(textAndPeers, 1, 0);
 	layout->addLayout(fileEntry, 1, 1);
+//	layout->addWidget(al, 1, 2);
 	layout->setColumnStretch(0, 1);
 	layout->setColumnStretch(1, 2);
 	layout->setColumnStretch(2, 2);
@@ -173,7 +187,7 @@ ChatDialog::ChatDialog(QStringList args)
 	connect(fileSearch, SIGNAL(returnPressed()),
 			this, SLOT(createSearchRequest()));
 	connect(dlList, SIGNAL(itemClicked(QListWidgetItem *)),
-			this, SLOT(initiateDownload(QListWidgetItem *)));
+			this, SLOT(requestSeeders(QListWidgetItem *)));
 
 	timerQueue = new QQueue<QTimer *>();
 
@@ -274,20 +288,86 @@ void ChatDialog::sendBroadcast()
 		qDebug() << tracked.fileName + QString::number(tracked.blockCount);
     }
 
-	msg.insert("FileList", fileData);
+	msg.insert("Broadcast", fileData);
 	msg.insert(ORIGIN, myOrigin);
 
 	if (!peers.isEmpty())
 		forwardAll(msg);
 
-
-	dlList->addItem(new QListWidgetItem("Filename         22"));
 }
 
 void ChatDialog::readBroadcast(QVariantMap msg)
 {
-	
+	QString origin = msg[ORIGIN].toString();
+	QVariantMap fileData = msg["Broadcast"].toMap();
+
+	QMapIterator<QString, QVariant> mapIter(fileData);
+
+	while (mapIter.hasNext()) {
+		mapIter.next();
+
+		if (!availableFiles.contains(mapIter.key())) {
+			availableFiles[mapIter.key()] = origin;
+			QString display = mapIter.key() + "                     " + QString::number(mapIter.value().toInt());
+			dlList->addItem(new QListWidgetItem(display));
+		}
+	}
 }
+
+void ChatDialog::requestSeeders(QListWidgetItem *clicked)
+{
+	QStringList l = (clicked->text()).split(" ");
+	QString file = l[0];
+
+	int index = dlList->row(clicked);
+	dlList->takeItem(index);
+
+	if (!availableFiles.contains(file)) {
+		qDebug() << "AVF error";
+		return;
+	}
+
+	QString target = availableFiles[file];
+
+	QVariantMap request;
+	request.insert(DEST, target);
+	request.insert(ORIGIN, myOrigin);
+	request.insert("SeedRequest", file);
+
+	QPair<QHostAddress, quint16> dest = dsdv.value(target);
+	send(serializeMsg(request), Peer(dest.first, dest.second));
+
+//	requestTimer = new QTimer(this);
+//	connect(requestTimer, SIGNAL(timeout()), this, SLOT(resendRequest()));
+//	requestTimer->start(5000);
+}
+
+void ChatDialog::replySeeders(QVariantMap msg)
+{
+	QVariantMap request;
+	request.insert(DEST, msg[ORIGIN]);
+	request.insert(ORIGIN, myOrigin);
+	request.insert("SeedReply", msg["SeedRequest"]);
+	TrackedFileMetadata *found;
+
+	foreach(TrackedFileMetadata tracked, filesTracking) {
+		if (tracked.fileName == msg["SeedRequest"].toString()) {
+			request.insert("MetaFileID", tracked.metaHash);
+			request.insert("BlockListHash", tracked.blocklistHash);
+			request.insert("Seeders", tracked.seeders);
+			request.insert("BlockCount", tracked.blockCount);
+			found = &tracked;
+		}
+	}
+
+	QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
+	send(serializeMsg(request), Peer(dest.first, dest.second));
+
+
+}
+
+
+
 ///////////////////////////////////////////////////////////////////
 // private messages and routing
 ///////////////////////////////////////////////////////////////////
@@ -453,7 +533,7 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 	if (msg.contains(WANT))
 		checkStatus(msg.value(WANT).toMap(), sender, senderPort);
 	// Broadcast
-	else if (msg.contains("FileList"))
+	else if (msg.contains("Broadcast"))
 		readBroadcast(msg);
 	// Invalid message
 	else if (msg.size() == 0) {
@@ -472,6 +552,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				processBlockReply(msg);
 		//	else if (msg.contains(SEARCH_REPLY))
 		//		processSearchReply(msg);
+			else if (msg.contains("SeedRequest"))
+				replySeeders(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -681,32 +763,7 @@ void ChatDialog::finishNonSeqDL() {
 }
 */
 //////////////////////// NORMAL DOWNLOADS ///////////////////////
-void ChatDialog::initiateDownload(QListWidgetItem *clicked)
-{
-	QString file = clicked->text();
-	int index = dlList->row(clicked);
-	dlList->takeItem(index);
 
-	QPair<QString, QByteArray> destIdPair = wantToDL.value(file);
-	wantToDL.remove(file);
-	foundForDL.removeOne(file);
-	QVariantMap request;
-	request.insert(DEST, destIdPair.first);
-	request.insert(ORIGIN, myOrigin);
-	request.insert(HOP_LIMIT, 20);
-	request.insert(BLOCK_REQUEST, destIdPair.second);
-
-	currentDL = FileMetadata(file, destIdPair.second);
-	lastRequest = request;
-
-	QPair<QHostAddress, quint16> dest = dsdv.value(destIdPair.first);
-	send(serializeMsg(request), Peer(dest.first, dest.second));
-
-	requestTimer = new QTimer(this);
-	connect(requestTimer, SIGNAL(timeout()), this, SLOT(resendRequest()));
-	requestTimer->start(5000);
-	
-}
 
 void ChatDialog::startDownload(QString target, QString hex)
 {
