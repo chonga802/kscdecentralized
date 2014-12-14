@@ -640,7 +640,7 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 			if (msg.contains(CHAT_TEXT))
 				printRumor(msg);
 			else if (msg.contains(BLOCK_REQUEST))
-				processBlockRequest(msg);
+				sendBlockReply(msg);
 			else if (msg.contains(BLOCK_REPLY))
 				processBlockReply(msg);
 		//	else if (msg.contains(SEARCH_REPLY))
@@ -648,7 +648,7 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 			else if (msg.contains("SeedRequest"))
 				replySeeders(msg);
 			else if (msg.contains("SeedReply"))
-				beginTorrent(msg);
+				sendBlockRequestToSeeders(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -791,6 +791,111 @@ void ChatDialog::processSearchReply(QVariantMap request)
 //		Start download
 //////////////////////////////////////////////////////////////
 
+	void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
+	QByteArray fileID = msg.value("MetaFileID").toByteArray();
+	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
+	QStringList seeders = msg.value("Seeders").toStringList();
+	int blockCount = msg.value("BlockCount").toInt();
+	//fill blocksLeft
+	for(int i = 0; i < blockCount; i++){
+		blocksLeft.append(i);
+	}
+	//request blocks from seeders until you have all of them
+	int numBlocksLeft = blocksLeft.length();
+	//for every seeder request different block
+	for(int i = 0; i < seeders.size(); i++){
+		int blockNum = blocksLeft.at(i % numBlocksLeft);
+		//send block request to seeder
+		sendBlockRequest(blockNum, seeders.at(i), fileID, blockListHash);
+	}
+	//set up timer in case all seeders time out
+
+}
+
+void ChatDialog::sendBlockRequest(int blockNum, QString seeder, QByteArray fileID, QByteArray blockListHash)
+{
+	//construct block request
+	QVariantMap blockRequest;
+	blockRequest.insert("Dest", seeder);
+	blockRequest.insert("Origin", myOrigin);
+	blockRequest.insert("BlockNum", blockNum);
+	blockRequest.insert("MetaFileID", fileID);
+	blockRequest.insert("BlockListHash", blockListHash);
+	//send block request to target seeder
+	QPair<QHostAddress, quint16> dest = dsdv.value(seeder);
+	//qDebug() << "sending block request of" << blockRequest << "to" << dest.first << "," << dest.second;
+	send(serializeMsg(blockRequest), Peer(dest.first, dest.second));	
+}
+
+void ChatDialog::sendBlockReply(QVariantMap msg){
+	QByteArray fileID = msg.value("MetaFileID").toByteArray();
+	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
+	int blockNum = msg.value("BlockNum").toInt();
+	QString pathName;
+	//find fileName that matches fileID
+	for(int i = 0; i < filesForDL.size(); i++){
+		FileMetadata f = filesForDL.at(i);
+		if(f.getMetaHash()==fileID){
+			pathName = f.getFullName();
+			msg.insert("FileName",f.getFileName());
+			break;
+		}
+	}
+    QByteArray blocklist;
+    QCryptographicHash crypto(QCryptographicHash::Sha1);
+	QFile file(pathName);
+	file.open(QFile::ReadOnly);
+	QByteArray data;
+	//divide file into 8KB blocks
+	for(int i = 0; i < blockNum+1; i++){
+	  	data = file.read(8192);
+	}
+	msg.insert("FileBlock", data);
+	//send file block to block requester;
+	QString origin = msg.value("Origin").toString();
+	msg.insert("Dest", origin);
+	msg.insert("Origin", myOrigin);
+	QPair<QHostAddress, quint16> dest = dsdv.value(origin);
+	send(serializeMsg(msg), Peer(dest.first, dest.second));	
+}
+
+void ChatDialog::processBlockReply(QVariantMap msg){
+	QByteArray fileID = msg.value("MetaFileID").toByteArray();
+	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
+	QString seeder = msg.value("Origin").toString();
+	QByteArray data = msg.value("FileBlock").toByteArray();
+	int blockNum = msg.value("BlockNum").toInt();
+	if(blocksLeft.contains(blockNum)){
+		//remove blockNum from blocksLeft
+		blocksLeft.removeAll(blockNum);
+		//store file in blocksAcquired
+		blocksAcquired.insert(blockNum, data);
+		//if still have blocks left you need, send block request to seeder
+		int numBlocksLeft = blocksLeft.length();
+		if(numBlocksLeft > 0){
+			int blockNum = blocksLeft.at(rand() % numBlocksLeft);
+			//send block request to seeder
+			sendBlockRequest(blockNum, seeder, fileID, blockListHash);
+		}
+		//else, save the new file you have acquired to desktop
+		else{
+			//concatenate file blocks in blocksAcquired into single block
+			QByteArray fileBlocks;
+			for(int i = 0; i < blocksAcquired.size(); i++){
+				QByteArray block = blocksAcquired.value(i);
+				fileBlocks.append(block);
+			}
+			//save file
+			QString fileName = msg.value("FileName").toString();
+			QFile *savedFile = new QFile(fileName);
+			savedFile->open(QFile::WriteOnly);
+			savedFile->write(fileBlocks);
+			savedFile->close();
+		}
+	}
+}
+
+
 // Take seeder list and start non-sequential download
 void ChatDialog::beginTorrent(QVariantMap msg) {
 
@@ -907,122 +1012,122 @@ void ChatDialog::startDownload()
 	downloadWindow->show();
 }
 
-void ChatDialog::processBlockRequest(QVariantMap request)
-{
-	QByteArray requestedBytes = request.value(BLOCK_REQUEST).toByteArray();
-	QByteArray replyHashBytes, dataBytes;
-	bool foundData = 0;
-	qDebug() << "REQUESTED:" << requestedBytes.toHex();
-	foreach (FileMetadata data, filesForDL) {
-		// if metafile request, send block list hash
-		if (data.getMetaHash() == requestedBytes) {
-			qDebug() << "DATA MATCHES A METAHASH";
-			replyHashBytes = data.getMetaHash();
-			dataBytes = data.getBlocklistHash();
-			foundData = 1;
-			break;
-		}
-		// else if hash is found, get associated data
-		else if (data.findBytesIndex(requestedBytes) != -1) {
-			qDebug() << "DATA FOUND IN BLOCKLIST, INDEX:" <<
-					data.findBytesIndex(requestedBytes);
-			replyHashBytes = requestedBytes;
+// void ChatDialog::processBlockRequest(QVariantMap request)
+// {
+// 	QByteArray requestedBytes = request.value(BLOCK_REQUEST).toByteArray();
+// 	QByteArray replyHashBytes, dataBytes;
+// 	bool foundData = 0;
+// 	qDebug() << "REQUESTED:" << requestedBytes.toHex();
+// 	foreach (FileMetadata data, filesForDL) {
+// 		// if metafile request, send block list hash
+// 		if (data.getMetaHash() == requestedBytes) {
+// 			qDebug() << "DATA MATCHES A METAHASH";
+// 			replyHashBytes = data.getMetaHash();
+// 			dataBytes = data.getBlocklistHash();
+// 			foundData = 1;
+// 			break;
+// 		}
+// 		// else if hash is found, get associated data
+// 		else if (data.findBytesIndex(requestedBytes) != -1) {
+// 			qDebug() << "DATA FOUND IN BLOCKLIST, INDEX:" <<
+// 					data.findBytesIndex(requestedBytes);
+// 			replyHashBytes = requestedBytes;
 
-			QFile FILE(data.getFullName());
-			FILE.open(QFile::ReadOnly);
-			int blockNum = data.findBytesIndex(requestedBytes);
-			while (blockNum > 0) {
-				FILE.read(8192);
-				blockNum--;
-			}
-			dataBytes = FILE.read(8192);
-			FILE.close();
-			foundData = 1;
-			break;
-		}
-	}
+// 			QFile FILE(data.getFullName());
+// 			FILE.open(QFile::ReadOnly);
+// 			int blockNum = data.findBytesIndex(requestedBytes);
+// 			while (blockNum > 0) {
+// 				FILE.read(8192);
+// 				blockNum--;
+// 			}
+// 			dataBytes = FILE.read(8192);
+// 			FILE.close();
+// 			foundData = 1;
+// 			break;
+// 		}
+// 	}
 
-	if (foundData) {
-		qDebug() << "REPLY HASH:" << replyHashBytes.toHex();
-		QVariantMap reply;
-		reply.insert(DEST, request.value(ORIGIN).toString());
-		reply.insert(ORIGIN, myOrigin);
-		reply.insert(HOP_LIMIT, 20);
-		reply.insert(BLOCK_REPLY, replyHashBytes);
-		reply.insert(DATA, dataBytes);
+// 	if (foundData) {
+// 		qDebug() << "REPLY HASH:" << replyHashBytes.toHex();
+// 		QVariantMap reply;
+// 		reply.insert(DEST, request.value(ORIGIN).toString());
+// 		reply.insert(ORIGIN, myOrigin);
+// 		reply.insert(HOP_LIMIT, 20);
+// 		reply.insert(BLOCK_REPLY, replyHashBytes);
+// 		reply.insert(DATA, dataBytes);
 
-		QPair<QHostAddress, quint16> dest =
-				dsdv.value(request.value(ORIGIN).toString());
-		send(serializeMsg(reply), Peer(dest.first, dest.second));
-	}
-	else
-		qDebug() << "COULD NOT FIND REQUESTED DATA";
-}
+// 		QPair<QHostAddress, quint16> dest =
+// 				dsdv.value(request.value(ORIGIN).toString());
+// 		send(serializeMsg(reply), Peer(dest.first, dest.second));
+// 	}
+// 	else
+// 		qDebug() << "COULD NOT FIND REQUESTED DATA";
+// }
 
-void ChatDialog::processBlockReply(QVariantMap reply)
-{
-	QByteArray data = reply.value(DATA).toByteArray();
-	QByteArray hashedData = QCA::Hash("sha1").hash(data).toByteArray();
-	if (hashedData != reply.value(BLOCK_REPLY).toByteArray()) {
-		qDebug() << "ERROR: data returned does not match hash";
-		qDebug() << hashedData.toHex();
-		qDebug() << reply.value(BLOCK_REPLY).toByteArray().toHex();
-		failedDLNum++;
-	}
-/*
-	else if (nonSeqDL) {
-		processNonSeqBlockResponse(reply);
-	}
-*/
-	else {
-		if (currentDL.getLastRequested() == reply.value(BLOCK_REPLY).toByteArray()) {
-			killRequestTimer();
-			if (currentDL.getMetaHash() == currentDL.getLastRequested()) {
-				qDebug() << "METAFILE REQUESTED";
-				currentDL.setBlocklistHash(reply.value(DATA).toByteArray());
-			}
-			else {
-				qDebug() << "ADDING TO FILE";
-				currentDL.addFileBytes(reply.value(DATA).toByteArray());
-			}
-			currentDL.getNextRequest();
+// void ChatDialog::processBlockReply(QVariantMap reply)
+// {
+// 	QByteArray data = reply.value(DATA).toByteArray();
+// 	QByteArray hashedData = QCA::Hash("sha1").hash(data).toByteArray();
+// 	if (hashedData != reply.value(BLOCK_REPLY).toByteArray()) {
+// 		qDebug() << "ERROR: data returned does not match hash";
+// 		qDebug() << hashedData.toHex();
+// 		qDebug() << reply.value(BLOCK_REPLY).toByteArray().toHex();
+// 		failedDLNum++;
+// 	}
+// /*
+// 	else if (nonSeqDL) {
+// 		processNonSeqBlockResponse(reply);
+// 	}
+// */
+// 	else {
+// 		if (currentDL.getLastRequested() == reply.value(BLOCK_REPLY).toByteArray()) {
+// 			killRequestTimer();
+// 			if (currentDL.getMetaHash() == currentDL.getLastRequested()) {
+// 				qDebug() << "METAFILE REQUESTED";
+// 				currentDL.setBlocklistHash(reply.value(DATA).toByteArray());
+// 			}
+// 			else {
+// 				qDebug() << "ADDING TO FILE";
+// 				currentDL.addFileBytes(reply.value(DATA).toByteArray());
+// 			}
+// 			currentDL.getNextRequest();
 
-			if (currentDL.getLastRequested() == QByteArray("")) {
-				downloading = false;
-				qDebug() << "DONE DOWNLOADING";
-				QFile tempFile(currentDL.getFileName());
-				tempFile.open(QIODevice::WriteOnly);
-				tempFile.write(currentDL.getFileBytes());
-				tempFile.close();
-				startNextDownload();
-			}
-			else {
-				qDebug() << "REQUESTING MORE DATA";
-				QVariantMap request;
-				request.insert(DEST, reply.value(ORIGIN).toString());
-				request.insert(ORIGIN, myOrigin);
-				request.insert(HOP_LIMIT, 20);
-				request.insert(BLOCK_REQUEST, currentDL.getLastRequested());
-				lastRequest = request;
+// 			if (currentDL.getLastRequested() == QByteArray("")) {
+// 				downloading = false;
+// 				qDebug() << "DONE DOWNLOADING";
+// 				QFile tempFile(currentDL.getFileName());
+// 				tempFile.open(QIODevice::WriteOnly);
+// 				tempFile.write(currentDL.getFileBytes());
+// 				tempFile.close();
+// 				startNextDownload();
+// 			}
+// 			else {
+// 				qDebug() << "REQUESTING MORE DATA";
+// 				QVariantMap request;
+// 				request.insert(DEST, reply.value(ORIGIN).toString());
+// 				request.insert(ORIGIN, myOrigin);
+// 				request.insert(HOP_LIMIT, 20);
+// 				request.insert(BLOCK_REQUEST, currentDL.getLastRequested());
+// 				lastRequest = request;
 
-				QPair<QHostAddress, quint16> dest =
-						dsdv.value(reply.value(ORIGIN).toString());
-				send(serializeMsg(request), Peer(dest.first, dest.second));
+// 				QPair<QHostAddress, quint16> dest =
+// 						dsdv.value(reply.value(ORIGIN).toString());
+// 				send(serializeMsg(request), Peer(dest.first, dest.second));
 
-				requestTimer = new QTimer(this);
-				connect(requestTimer, SIGNAL(timeout()), this, SLOT(resendRequest()));
-				requestTimer->start(5000);
-			}
-		}
-		// Incorrect request, drop it
-		else {
-			qDebug() << "REPLY DOES NOT MATCH LAST REQUEST";
-			qDebug() << "  Requested:" << currentDL.getLastRequested();
-			qDebug() << "  Received: " << reply.value(BLOCK_REPLY).toByteArray();
-			failedDLNum++;
-		}
-	}
-}
+// 				requestTimer = new QTimer(this);
+// 				connect(requestTimer, SIGNAL(timeout()), this, SLOT(resendRequest()));
+// 				requestTimer->start(5000);
+// 			}
+// 		}
+// 		// Incorrect request, drop it
+// 		else {
+// 			qDebug() << "REPLY DOES NOT MATCH LAST REQUEST";
+// 			qDebug() << "  Requested:" << currentDL.getLastRequested();
+// 			qDebug() << "  Received: " << reply.value(BLOCK_REPLY).toByteArray();
+// 			failedDLNum++;
+// 		}
+// 	}
+// }
 
 void ChatDialog::killRequestTimer()
 {
