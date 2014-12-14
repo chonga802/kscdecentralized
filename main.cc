@@ -363,7 +363,8 @@ void ChatDialog::replySeeders(QVariantMap msg)
 	QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
 	send(serializeMsg(request), Peer(dest.first, dest.second));
 
-
+	found->seederCount++;
+	found->seeders.append(msg[ORIGIN].toString());
 }
 
 
@@ -554,6 +555,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 		//		processSearchReply(msg);
 			else if (msg.contains("SeedRequest"))
 				replySeeders(msg);
+			else if (msg.contains("SeedReply"))
+				beginTorrent(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -696,6 +699,11 @@ void ChatDialog::processSearchReply(QVariantMap request)
 //		Start download
 //////////////////////////////////////////////////////////////
 
+// Take seeder list and start non-sequential download
+void ChatDialog::beginTorrent(QVariantMap msg) {
+
+
+}
 
 ////// NON-SEQUENTIAL, MUTLI-PEER DOWNLOAD GOES HERE /////////
 /*

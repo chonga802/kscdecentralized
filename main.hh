@@ -78,6 +78,8 @@ public slots:
 	void createSearchRequest();
 	void resendSearch();
 
+	void beginTorrent(QVariantMap msg);
+
 	void startDownload();
 	void startDownload(QString, QString);
 	void requestSeeders(QListWidgetItem*);
