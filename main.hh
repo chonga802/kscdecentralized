@@ -18,6 +18,8 @@
 #include "FileMetadata.hh"
 #include "TrackedFileMetadata.hh"
 
+#include "ChordDHT.hh"
+
 
 class InitDialog : public QDialog
 {
@@ -168,6 +170,9 @@ private:
 	QTimer *broadcastTimer;
 
 	QList<QStringList> maybePeers;
+
+	// Chord table, initialized after name is decided
+	ChordDHT *chord;
 };
 
 #endif // PEERSTER_MAIN_HH
