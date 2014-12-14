@@ -72,6 +72,8 @@ InitDialog::InitDialog() {
 	fullLayout->addWidget(goButton,1,0);
 
 	setLayout(fullLayout);
+		qDebug() << "asdfasdf";
+
 	connect(goButton, SIGNAL(clicked()), this, SLOT(loadID()));
 
 }
@@ -84,6 +86,12 @@ void InitDialog::loadID() {
 	fullLayout->removeItem(layout);
 	fullLayout->removeWidget(goButton);
 
+	topLabel = new QLabel("Generating secure ID:");
+	topLabel->setAlignment(Qt::AlignCenter);
+
+	progressLabel = new QLabel(" ");
+	progressLabel->setAlignment(Qt::AlignCenter);
+
 	delete layout;
 	delete goButton;
 	delete idLabel;
@@ -91,8 +99,45 @@ void InitDialog::loadID() {
 	delete peerLabel;
 	delete peerEntry;
 
+	fullLayout->addWidget(topLabel,0,0);
+	fullLayout->addWidget(progressLabel,1,0);
 	setLayout(fullLayout);
+	QString newID;
 
+	for (int counter = 0; ; counter++) {
+
+		newID = id + "_" + QString::number(counter);
+
+		QByteArray hash = QCryptographicHash::hash(newID.toUtf8(), QCryptographicHash::Md5);
+
+		// Set size of bytes
+		Q_ASSERT(hash.size() == 16);
+
+		// Extract bytes
+		QDataStream stream(hash);
+		qint64 a, b;
+		stream >> a >> b;
+
+	//	qDebug() << id << "," << (((a ^ b) % 256) + 256) % 256;
+		// return XOR of bits, mod 256 = pow(2, 8)
+		int thingy = (((a ^ b) % (65535)) + 65535) % 65535;
+	//	qDebug() << thingy;
+
+		//if (counter%1000 == 0) {
+		progressLabel->setText(newID);
+		setLayout(fullLayout);
+	//}
+		if (rand() % 1000 == 0)
+		QCoreApplication::processEvents();
+
+		if (thingy == 42) {
+			topLabel->setText("Success!");
+			break;
+		}
+	}
+
+	ChatDialog *dialog = new ChatDialog(QStringList(""));
+	dialog->show();
 
 
 }
@@ -408,7 +453,7 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 		reply.insert("Seeders", chord->getSeeders(file));
 		reply.insert("BlockCount", chord->getNumBlocks(file));
 
-		sendBlockRequestToSeeders(reply);
+	//	sendBlockRequestToSeeders(reply);
 
 		// If we are not seeding already, add us to list of seeders
 		QStringList seeds = chord->getSeeders(file);
@@ -1396,7 +1441,9 @@ int main(int argc, char **argv)
 	args.removeFirst();
 
 	// Create an initial chat dialog window
-	InitDialog *dialog = new InitDialog();
+//	InitDialog *dialog = new InitDialog();
+	ChatDialog *dialog = new ChatDialog(args);
+	
 	dialog->show();
 
 	// Enter the Qt main loop; everything else is event driven

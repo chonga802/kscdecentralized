@@ -31,7 +31,9 @@ public:
 private:
 	QGridLayout *layout;
 	QLineEdit *peerEntry;
-	QLabel* peerLabel;
+	QLabel * peerLabel;
+	QLabel * progressLabel;
+	QLabel * topLabel;
 	QLineEdit *idEntry;
 	QLabel* idLabel;
 	QGridLayout* fullLayout;
