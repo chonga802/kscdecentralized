@@ -422,51 +422,6 @@ void ChatDialog::replySeeders(QVariantMap msg)
 {
 	QString file = msg["SeedRequest"].toString();
 
-<<<<<<< HEAD
-	QMutableListIterator<TrackedFileMetadata> i(filesTracking);
-	while (i.hasNext()) {
-		found = &i.next();
-		if (found->fileName == msg["SeedRequest"].toString()) {
-			request.insert("MetaFileID", found->metaHash);
-			request.insert("BlockListHash", found->blocklistHash);
-			request.insert("Seeders", found->seeders);
-			request.insert("BlockCount", found->blockCount);
-			
-			QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
-			send(serializeMsg(request), Peer(dest.first, dest.second));
-
-			qDebug() << "SENDING SEED REPLY";
-
-			found->seederCount++;
-			found->seeders.append(msg[ORIGIN].toString());
-
-			qDebug() << found->fileName + " " + QString::number(found->seederCount);
-			return;
-		}
-	}
-	/*
-	foreach(TrackedFileMetadata tracked, filesTracking) {
-		if (tracked.fileName == msg["SeedRequest"].toString()) {
-			request.insert("MetaFileID", tracked.metaHash);
-			request.insert("BlockListHash", tracked.blocklistHash);
-			request.insert("Seeders", tracked.seeders);
-			request.insert("BlockCount", tracked.blockCount);
-			found = &tracked;
-			
-			QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
-			send(serializeMsg(request), Peer(dest.first, dest.second));
-
-			qDebug() << "SENDING SEED REPLY";
-
-			tracked.seederCount++;
-			tracked.seeders.append(msg[ORIGIN].toString());
-
-			qDebug() << tracked.fileName + " " + QString::number(tracked.seederCount);
-			return;
-		}
-	}*/
-}
-=======
 	// If I have the data for this file
 	if (chord->getTracker(file) == myOrigin) {
 
@@ -485,7 +440,6 @@ void ChatDialog::replySeeders(QVariantMap msg)
 		// And send it back to who requested it
 		QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
 		send(serializeMsg(reply), Peer(dest.first, dest.second));
->>>>>>> aabdb785bcc299255423bf17ca8bc4bd07120733
 
 		// Then add them as a seeder, if they are not already
 		QStringList seeds = chord->getSeeders(file);
