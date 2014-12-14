@@ -14,6 +14,8 @@
 #include "Peer.hh"
 #include "SageTextEdit.hh"
 #include "FileMetadata.hh"
+#include "TrackedFileMetadata.hh"
+
 
 class ChatDialog : public QDialog
 {
@@ -35,6 +37,8 @@ public:
 	void processSearchRequest(QVariantMap);
 	void processSearchReply(QVariantMap);
 	void startNextDownload();
+
+	void readBroadcast(QVariantMap msg);
 
 	void pingRandomPeer();
 	QByteArray serializeMsg(QVariantMap);
@@ -62,6 +66,7 @@ public slots:
 	void processPeer();
 	void checkInfo(QHostInfo);
 	void sendRoute();
+	void sendBroadcast();
 
 	void shareFile();
 	void addFilesForSharing(QStringList);
@@ -110,6 +115,9 @@ private:
 	// Files this node is waiting to download
 	QList<FileMetadata> waitingToDL;
 
+	// Files this node is tracking
+	QList<TrackedFileMetadata> filesTracking;
+
 	QHash<QString, QPair<QString, QByteArray> > wantToDL;
 	QList<QString> foundForDL;
 
@@ -130,6 +138,7 @@ private:
 	QQueue<QTimer *> *timerQueue;
 	QTimer *entropyTimer;
 	QTimer *routeTimer;
+	QTimer *broadcastTimer;
 
 	QList<QStringList> maybePeers;
 };

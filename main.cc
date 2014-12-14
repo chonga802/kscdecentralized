@@ -23,6 +23,8 @@
 #include "PrivateMessageWindow.hh"
 #include "SageTextEdit.hh"
 #include "FileMetadata.hh"
+#include "TrackedFileMetadata.hh"
+
 #include "DownloadWindow.hh"
 
 QString CHAT_TEXT = "ChatText";
@@ -46,6 +48,10 @@ QString MATCH_IDS = "MatchIDs";
 ////////////////////////////////////////////////////////////////
 // ChatDialog
 ////////////////////////////////////////////////////////////////
+
+//ChatDialog::InitDialog(QStringList args) {
+
+//}
 
 ChatDialog::ChatDialog(QStringList args)
 {
@@ -72,12 +78,11 @@ ChatDialog::ChatDialog(QStringList args)
 	setWindowTitle(myOrigin + " @Port:" + QString::number(sock.getMyPort()));
 	// Read-only text box where we display messages from everyone.
 	// This widget expands both horizontally and vertically.
-	textview = new QTextEdit(this);
-	textview->setReadOnly(true);
+//	textview = new QTextEdit(this);
+//	textview->setReadOnly(true);
 
 	// Exercise 2: SageTextEdit subclasses QTextEdit for multi-line text entry.
 	userInput = new SageTextEdit();
-	QLabel* textEntryLabel = new QLabel("Enter message:", userInput);
 
 	fileSearch = new QLineEdit();
 	QLabel* fileSearchLabel = new QLabel("Enter file to search for:", fileSearch);
@@ -113,9 +118,6 @@ ChatDialog::ChatDialog(QStringList args)
 	files->addWidget(dlButton);
 	files->addWidget(shareButton);
 
-	QVBoxLayout *textEntry = new QVBoxLayout();
-	textEntry->addWidget(textEntryLabel);
-	textEntry->addWidget(userInput);
 
 	QVBoxLayout *fileEntry = new QVBoxLayout();
 	fileEntry->addWidget(dlLabel);
@@ -125,10 +127,9 @@ ChatDialog::ChatDialog(QStringList args)
 	fileEntry->addLayout(files);
 
 	// resize
-	layout->addWidget(textview, 0, 0, 1, -1);
+//	layout->addWidget(textview, 0, 0, 1, -1);
 	layout->addLayout(textAndPeers, 1, 0);
 	layout->addLayout(fileEntry, 1, 1);
-	layout->addLayout(textEntry, 1, 2);
 	layout->setColumnStretch(0, 1);
 	layout->setColumnStretch(1, 2);
 	layout->setColumnStretch(2, 2);
@@ -184,6 +185,12 @@ ChatDialog::ChatDialog(QStringList args)
 	connect(routeTimer, SIGNAL(timeout()), this, SLOT(sendRoute()));
 	routeTimer->start(60000);
 
+	// Timer to broadcast list of tracked files
+	broadcastTimer = new QTimer(this);
+	connect(broadcastTimer, SIGNAL(timeout()), this, SLOT(sendBroadcast()));
+	broadcastTimer->start(10000);
+
+
 	sendRoute();
 
 	// Exercise 1: We wish to have focus initially on the text entry box.
@@ -222,11 +229,13 @@ void ChatDialog::addFilesForSharing(QStringList files)
 			QByteArray blocklistHash;
 			QCA::Hash shaHash("sha1");
 
+			int blockCount = 0;
 			while(!FILE.atEnd()){
 				shaHash.update(FILE.read(8192));		// 8192 = 8KB
 				QByteArray byteBlock = shaHash.final().toByteArray();
 				blocklistHash.append(byteBlock);
 				shaHash.clear();						// clear buffer
+				blockCount++;
 			}
 			FILE.close();
 
@@ -237,10 +246,48 @@ void ChatDialog::addFilesForSharing(QStringList files)
 			FileMetadata newFile(file, info.fileName(),
 					info.size(), blocklistHash, metaHash);
 			filesForDL.append(newFile);
+
+			// Add file to tracked files (with self as first seeder)
+			TrackedFileMetadata tracked(info.fileName(), blockCount, blocklistHash,
+				metaHash, myOrigin);
+			filesTracking.append(tracked);
+
+			// Announce you now have file
+			/////////// ADD : APPEND FILE TO UPLOADS DISPLAY
+			sendBroadcast();
+
 		}
 	}
 }
 
+///////////////////////////////////////////////////////////////////
+//  Tracking
+///////////////////////////////////////////////////////////////////
+
+void ChatDialog::sendBroadcast()
+{
+	QVariantMap msg;
+	QVariantMap fileData;
+
+	foreach(TrackedFileMetadata tracked, filesTracking) {
+		fileData.insert(tracked.fileName, tracked.seederCount);
+		qDebug() << tracked.fileName + QString::number(tracked.blockCount);
+    }
+
+	msg.insert("FileList", fileData);
+	msg.insert(ORIGIN, myOrigin);
+
+	if (!peers.isEmpty())
+		forwardAll(msg);
+
+
+	dlList->addItem(new QListWidgetItem("Filename         22"));
+}
+
+void ChatDialog::readBroadcast(QVariantMap msg)
+{
+	
+}
 ///////////////////////////////////////////////////////////////////
 // private messages and routing
 ///////////////////////////////////////////////////////////////////
@@ -405,6 +452,9 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 	// Status request
 	if (msg.contains(WANT))
 		checkStatus(msg.value(WANT).toMap(), sender, senderPort);
+	// Broadcast
+	else if (msg.contains("FileList"))
+		readBroadcast(msg);
 	// Invalid message
 	else if (msg.size() == 0) {
 		qDebug() << "EMPTY MAP FOUND FROM" << sender << senderPort;
@@ -420,8 +470,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				processBlockRequest(msg);
 			else if (msg.contains(BLOCK_REPLY))
 				processBlockReply(msg);
-			else if (msg.contains(SEARCH_REPLY))
-				processSearchReply(msg);
+		//	else if (msg.contains(SEARCH_REPLY))
+		//		processSearchReply(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -536,7 +586,7 @@ void ChatDialog::processSearchRequest(QVariantMap request)
 		}
 	}
 }
-
+/*
 void ChatDialog::processSearchReply(QVariantMap request)
 {
 	QVariantList matchNames = request.value(MATCH_NAMES).toList();
@@ -555,7 +605,7 @@ void ChatDialog::processSearchReply(QVariantMap request)
 			dlList->addItem(new QListWidgetItem(name));
 		}
 	}
-}
+}*/
 
 //////////////////////////////////////////////////////////////
 //	FILE DOWNLOADING:
@@ -837,7 +887,7 @@ void ChatDialog::resendRequest()
 		QString fileName = currentDL.getFileName();
 		wantToDL.insert(fileName, QPair<QString, QByteArray>(target, id));
 		foundForDL.append(fileName);
-		dlList->addItem(new QListWidgetItem(fileName));
+//		dlList->addItem(new QListWidgetItem(fileName));
 
 		startNextDownload();
 	}
