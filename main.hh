@@ -55,8 +55,8 @@ public:
 	void send(QByteArray, Peer);
 	void forwardAll(QVariantMap);
 	void processMessage(QByteArray, QHostAddress, quint16);
-	void processBlockRequest(QVariantMap);
-	void processBlockReply(QVariantMap);
+	//void processBlockRequest(QVariantMap);
+	//void processBlockReply(QVariantMap);
 	void readRumor(QVariantMap, QHostAddress, quint16);
 	void printRumor(QVariantMap);
 	void checkStatus(QVariantMap, QHostAddress, quint16);
@@ -81,6 +81,10 @@ public:
 	void updateDSDV(QString, QHostAddress, quint16);
 
 	// For non-seq downloads
+	void processBlockReply(QVariantMap msg);
+	void sendBlockReply(QVariantMap msg);
+	void sendBlockRequest(int blockNum, QString seeder, QByteArray fileID, QByteArray blockListHash);
+	void sendBlockRequestToSeeders(QVariantMap msg);
 	void startNonSeqDL();
 	void processNonSeqBlockResponse(QVariantMap response);
 	void finishNonSeqDL();
@@ -175,6 +179,9 @@ private:
 
 	// Chord table, initialized after name is decided
 	ChordDHT *chord;
+
+	QList<int> blocksLeft; //blocks left to download from file
+	QMap<int, QByteArray> blocksAcquired; //file blocks acquired and saved
 };
 
 #endif // PEERSTER_MAIN_HH
