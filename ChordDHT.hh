@@ -55,13 +55,19 @@ public:
 	void addFile(QString, QByteArray, QString, QByteArray);
 
 	/* Adds node as a seed for specified file		*/
-	void addSeed(QString, QByteArray, QString);
+	void addSeed(QString, QString);
 
 	/* Updates finger table with peerID				*/
-	void updateFingers(QString);
+	bool updateFingers(QString);
 
 	/* Returns index of given string in DHT			*/
 	int getLocation(QString);
+
+	/* Returns number of seeds for given file		*/
+	int getNumSeeds(QString);
+
+	/* Returns number of blocks for given file		*/
+	int getNumBlocks(QString);
 
 	/* Returns either predecessor in finger table of
 		file, or actual tracker if that is known
@@ -69,15 +75,27 @@ public:
 		NOTE: if value returned is not this node,
 		must message that node to confirm status
 		as tracker for given file					*/
-	QString getTracker(QString, QByteArray);
+	QString getTracker(QString);
 
 	/* Returns seeds for given file					*/
-	QStringList getSeeders(QString, QByteArray);
+	QStringList getSeeders(QString);
 
 	/* Returns blocklist hash for given file		*/
-	QByteArray getBytes(QString, QByteArray);
+	QByteArray getBytes(QString);
+
+	/* Returns metafile ID for given file			*/
+	QByteArray getMeta(QString);
 
 private:
+
+	/* returns true if in order in cycle, else false
+		This means that when given A, B, C as args,
+		returns true when:
+		- A < B < C
+		- C < A < B
+		- B < C < A
+		Else it returns false						*/
+	bool assertOrder(int, int, int);
 
 	/* Node's index in table */
 	int myLoc;
@@ -86,7 +104,7 @@ private:
 	QString myID;
 
 	/* Node's predecessor */
-	int predLoc;;
+	int predLoc;
 
 	/* Finger table:
 		each entry is the nearest successor to
@@ -94,13 +112,17 @@ private:
 	   Initially all entries are self		*/
 	QString finger[8];
 
-	/* Key:		Pair of filename/metafile ID
+	/* Key:		File name
 	   Value:	List of known seeds for key	*/
-	QMap<QPair<QString, QByteArray>, QStringList> fileSeedMap;
+	QMap<QString, QStringList> fileSeedMap;
 
-	/* Key:		Pair of filename/metafile ID
+	/* Key:		File name
 	   Value:	Blocklist hash for the file	*/
-	QMap<QPair<QString, QByteArray>, QByteArray> fileHashMap;
+	QMap<QString, QByteArray> fileHashMap;
+
+	/* Key:		File name
+	   Value:	Metafile ID for the file	*/
+	QMap<QString, QByteArray> fileMetaMap;
 
 };
 

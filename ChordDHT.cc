@@ -29,34 +29,27 @@ void ChordDHT::addFile(QString name,
 		QString seed,
 		QByteArray bytes) {
 
-	QPair<QString, QByteArray> file;
-
-	file = QPair<QString, QByteArray>(name, metaID);
-
-	if (fileHashMap.contains(file))
+	if (fileMetaMap.contains(name))
 		qDebug() << "ERROR: File already inserted, overwriting";
 
-	fileSeedMap.insert(file, QStringList(seed));
-	fileHashMap.insert(file, bytes);
+	fileSeedMap.insert(name, QStringList(seed));
+	fileHashMap.insert(name, bytes);
+	fileMetaMap.insert(name, metaID);
 }
 
 /* working */
-void ChordDHT::addSeed(QString name,
-		QByteArray metaID,
-		QString seed) {
+void ChordDHT::addSeed(QString name, QString seed) {
 
-	QPair<QString, QByteArray> file;
 	QStringList seeds;
 
-	file = QPair<QString, QByteArray>(name, metaID);
 	// extract all current seeds for file
-	seeds = fileSeedMap.value(file);
+	seeds = fileSeedMap.value(name);
 
 	// append new seed to list
 	seeds.append(seed);
 
 	// reinsert
-	fileSeedMap.insert(file, seeds);
+	fileSeedMap.insert(name, seeds);
 }
 
 /* TODO: TEST THE SHIT OUT OF THIS
@@ -66,7 +59,7 @@ void ChordDHT::addSeed(QString name,
 *
 *	- need to do sharing files with predecessor
 */
-void ChordDHT::updateFingers(QString peerID) {
+bool ChordDHT::updateFingers(QString peerID) {
 	int peerLoc, fingerLoc, startLoc, d, i;
 
 	// get location of new peer in table
@@ -87,8 +80,8 @@ void ChordDHT::updateFingers(QString peerID) {
 		// find current successor
 		fingerLoc = getLocation(finger[i]);
 
-//		qDebug() << "finger" << i << ":" << startLoc << ", new:" << peerLoc << ", old:" << fingerLoc;
-		//qDebug() << "\told friend" << finger[i];
+		qDebug() << "finger" << i << ":" << startLoc << ", new:" << peerLoc << ", old:" << fingerLoc;
+
 		/*
 		* if start location and new peer collide, obviously peer
 		*	needs to occupy this spot in finger table, and it will
@@ -96,47 +89,33 @@ void ChordDHT::updateFingers(QString peerID) {
 		*/ 
 		if (startLoc == peerLoc) {
 			finger[i] = peerID;
-			break;
 		}
 		/* if finger < new peer < old finger successor, update */
-		else if ((startLoc < peerLoc) && (peerLoc < fingerLoc)) {
+		else if (assertOrder(startLoc, peerLoc, fingerLoc))
 			finger[i] = peerID;
-		}
-		/* if old finger successor < finger < new peer, update */
-		else if ((fingerLoc < startLoc) && (startLoc < peerLoc)) {
-			finger[i] = peerID;
-		}
-		/* if new peer < old finger successor < finger, update */
-		else if ((peerLoc < fingerLoc) && (fingerLoc < startLoc)) {
-			finger[i] = peerID;
-		}
 
 		/* update start location */
 		d *= 2;
 	}
 
+	if (predLoc == myLoc)
+		predLoc = peerLoc;
 	// check if new peer is your immediate predecessor
-	if ((predLoc < peerLoc) && (peerLoc < myLoc))
-		predLoc = peerLoc;
-	else if ((peerLoc < myLoc) && (myLoc < predLoc))
-		predLoc = peerLoc;
-	else if ((myLoc < predLoc) && (predLoc < peerLoc))
-		predLoc = peerLoc;
-	else if (predLoc == myLoc)
+	else if (assertOrder(predLoc, peerLoc, myLoc))
 		predLoc = peerLoc;
 
-	// if so, then must pass it files
-	if (peerLoc == predLoc) {
-		/* TODO: what the above comment says */
-		;
-	}
-/*
+
 	qDebug() << "New state of" << myID;
 	qDebug() << "\tpredLoc is" << predLoc;
 	for (i = 0; i < 8; i++) {
 		qDebug() << "\tFinger" << i << ":" << finger[i];
 	}
-*/
+
+	// if new predecessor, then must pass it files, return true
+	if (peerLoc == predLoc) {
+		return true;
+	}
+	return false;
 }
 
 /* seems to be working consistently, should test x-platform */
@@ -162,23 +141,43 @@ int ChordDHT::getLocation(QString id) {
 
 }
 
+
+int ChordDHT::getNumSeeds(QString name) {
+
+	if(!fileMetaMap.contains(name)) {
+		qDebug() << "ERROR: File" << name << "not found.";
+		return 0;
+	}
+	else
+		return fileSeedMap.value(name).size();
+}
+
+
+int ChordDHT::getNumBlocks(QString name) {
+
+	if(!fileHashMap.contains(name)) {
+		qDebug() << "ERROR: File" << name << "not found.";
+		return 0;
+	}
+	else {
+		QByteArray blockList = fileHashMap.value(name);
+		return blockList.size() / 20;
+	}
+}
+
 /* TODO: TEST THIS THOROUGHLY
 *
 *	seems okay right now? tested on a couple cases
 *
 */
-QString ChordDHT::getTracker(QString name,
-		QByteArray metaID) {
+QString ChordDHT::getTracker(QString name) {
 
 	qDebug() << "FINDING:" << name;
 
-	QPair<QString, QByteArray> file;
 	int fileLoc, fin, step;
 
-	file = QPair<QString, QByteArray>(name, metaID);
-
 	/* Check if I have the file, return my ID if so */
-	if (fileHashMap.contains(file)) {
+	if (fileHashMap.contains(name)) {
 		qDebug() << "\tI'VE GOT IT";
 		return myID;
 	}
@@ -201,31 +200,53 @@ QString ChordDHT::getTracker(QString name,
 }
 
 
-QStringList ChordDHT::getSeeders(QString name,
-		QByteArray metaID) {
+QStringList ChordDHT::getSeeders(QString name) {
 
 	// Check if we have file, return if so
-	if(fileSeedMap.contains(QPair<QString, QByteArray>(name, metaID)))
-		return fileSeedMap.value(QPair<QString, QByteArray>(name, metaID));
+	if(fileSeedMap.contains(name))
+		return fileSeedMap.value(name);
 
 	// else throw error, return empty list
 	else
-		qDebug() << "ERROR: file" << name << "with id" << metaID.toHex() << "not found.";
+		qDebug() << "ERROR: file" << name << "not found.";
 
 	/* questionable return, should think about this */
 	return QStringList("");
 }
 
 
-QByteArray ChordDHT::getBytes(QString name,
-		QByteArray metaID) {
+QByteArray ChordDHT::getBytes(QString name) {
 
-	if(fileHashMap.contains(QPair<QString, QByteArray>(name, metaID)))
-		return fileHashMap.value(QPair<QString, QByteArray>(name, metaID));
+	if(fileHashMap.contains(name))
+		return fileHashMap.value(name);
 
 	else
-		qDebug() << "ERROR: file" << name << "with id" << metaID.toHex() << "not found.";
+		qDebug() << "ERROR: file" << name << "not found.";
 
 	return NULL;
 }
 
+
+QByteArray ChordDHT::getMeta(QString name) {
+
+	if(fileMetaMap.contains(name))
+		return fileMetaMap.value(name);
+
+	else
+		qDebug() << "ERROR: file" << name << "not found.";
+
+	return NULL;
+}
+
+
+bool ChordDHT::assertOrder(int a, int b, int c) {
+
+	if ((a < b) && (b < c))
+		return true;
+	else if ((b < c) && (c < a))
+		return true;
+	else if ((c < a) && (a < b))
+		return true;
+	else
+		return false;
+}
