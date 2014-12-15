@@ -26,6 +26,7 @@ class ChordDHT
 {
 public:
 
+//////METHODS///////
 	/* Constructs new empty ChordDHT:
 		fills all finger entriew with given id		*/
 	ChordDHT(QString);
@@ -53,8 +54,7 @@ public:
 		Else it returns false						*/
 	bool assertOrder(int, int, int);
 
-private:
-
+//////FIELDS//////
 	/* Node's index in table */
 	int myLoc;
 
@@ -66,6 +66,8 @@ private:
 
 	/* Predecessor's id */
 	QString predID;
+
+private:
 
 	/* Finger table:
 		each entry is the nearest successor to

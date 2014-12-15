@@ -429,16 +429,30 @@ void ChatDialog::readUploadNotice(QVariantMap msg) {
 	if (target == myOrigin) {
 		qDebug() << "now tracking " + fn;
 
-		QString seeder = msg["Seeder"].toString();
-		int blockCount = msg["BlockCount"].toInt();
-		QByteArray blocklistHash = msg["BlockListHash"].toByteArray();
-		QByteArray metaHash = msg["MetaHash"].toByteArray();
+		if (msg["Seeder"].type() == QVariant::String) {
+			QString seeder = msg["Seeder"].toString();
+			int blockCount = msg["BlockCount"].toInt();
+			QByteArray blocklistHash = msg["BlockListHash"].toByteArray();
+			QByteArray metaHash = msg["MetaHash"].toByteArray();
 
-		TrackedFileMetadata tracked(fn, blockCount, blocklistHash,
-			metaHash, seeder);
-		filesTracking.append(tracked);
+			TrackedFileMetadata tracked(fn, blockCount, blocklistHash,
+				metaHash, seeder);
+			filesTracking.append(tracked);
 
-		sendBroadcast();
+			sendBroadcast();
+		}
+		else {
+			QStringList seeders = msg["Seeder"].toStringList();
+			int blockCount = msg["BlockCount"].toInt();
+			QByteArray blocklistHash = msg["BlockListHash"].toByteArray();
+			QByteArray metaHash = msg["MetaHash"].toByteArray();
+
+			TrackedFileMetadata tracked(fn, blockCount, blocklistHash,
+				metaHash, seeders);
+			filesTracking.append(tracked);
+
+			sendBroadcast();
+		}
 	}
 	else {
 		msg[DEST] = target;
@@ -1129,8 +1143,6 @@ void ChatDialog::readRumor(QVariantMap rumor, QHostAddress sender, quint16 sende
 				if (rumorSize==3)
 					updateDSDV(rumorOrigin, sender, senderPort);
 			}
-			else
-				qDebug() << "I'm ignoring your needs";
 		}
 		// If we haven't seen it
 		else {
@@ -1290,8 +1302,45 @@ void ChatDialog::updateDSDV(QString origin, QHostAddress sender, quint16 senderP
 			privateList->addItem(new QListWidgetItem(origin));
 
 		qDebug() << "New friend " + origin;
-		chord->updateFingers(origin);
-		// NEED MORE CODE HERE SAGE
+
+		// If new predecessor in Chord Table
+		if (chord->updateFingers(origin)) {
+			QList<int> toDelete;
+			TrackedFileMetadata *file;
+
+			qDebug() << "---New predecessor, sharing files---";
+
+			// Iterate through files
+			for (int i = filesTracking.length() - 1; i >= 0; i--) {
+
+				// Send along files that are now pred's
+				file = &filesTracking[i];
+				if (chord->assertOrder(
+							chord->getLocation(file->fileName),
+							chord->predLoc,
+							chord->myLoc)) {
+
+					toDelete.append(i);
+
+					QVariantMap msg;
+					msg.insert("UploadNotice", file->fileName);
+					msg.insert("Seeder", file->seeders);
+					msg.insert("BlockCount", file->blockCount);
+					msg.insert("BlockListHash", file->blocklistHash);
+					msg.insert("MetaHash", file->metaHash);
+					msg.insert(DEST, origin);
+
+					qDebug() << "  sharing" << file->fileName;
+
+					QPair<QHostAddress, quint16> dest = dsdv.value(origin);
+					send(serializeMsg(msg), Peer(dest.first, dest.second));
+				}
+			}
+			// Delete data on our side
+			foreach (int dead, toDelete) {
+				filesTracking.removeAt(dead);
+			}		
+		}
 	}
 }
 

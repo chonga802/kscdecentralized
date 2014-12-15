@@ -11,6 +11,9 @@ public:
 	// constructors
 	TrackedFileMetadata(QString, int, QByteArray, QByteArray, QString);
 
+
+	TrackedFileMetadata(QString, int, QByteArray, QByteArray, QStringList);
+
 	// methods
 
 
