@@ -168,23 +168,23 @@ ChatDialog::ChatDialog(QStringList args)
 	QLabel* fileSearchLabel = new QLabel("Enter file to search for:", fileSearch);
 	shareButton = new QPushButton("Share file", this);
 	shareButton->setAutoDefault(false);
-	dlButton = new QPushButton("Download file", this);
-	dlButton->setAutoDefault(false);
+//	dlButton = new QPushButton("Download file", this);
+//	dlButton->setAutoDefault(false);
 	dlList = new QListWidget(this);
-	QLabel* dlLabel = new QLabel("Click file to download:", dlList);
+	QLabel* dlLabel = new QLabel("Torrents available:", dlList);
 
 	peerEntry = new QLineEdit();
 	QLabel* peerLabel = new QLabel("Add peer:", peerEntry);
 
 	privateList = new QListWidget(this);
-	QLabel* privateListLabel = new QLabel("Click ID to direct message:", privateList);
+	QLabel* privateListLabel = new QLabel("Seeding:", privateList);
 
 	// Lay out the widgets to appear in the main window.
 	QGridLayout *layout = new QGridLayout();
 
-	QHBoxLayout *peerEntryLayout = new QHBoxLayout();
-	peerEntryLayout->addWidget(peerLabel);
-	peerEntryLayout->addWidget(peerEntry);
+//	QHBoxLayout *peerEntryLayout = new QHBoxLayout();
+//	peerEntryLayout->addWidget(peerLabel);
+//	peerEntryLayout->addWidget(peerEntry);
 
 	QVBoxLayout *privMsgLayout = new QVBoxLayout();
 	privMsgLayout->addWidget(privateListLabel);
@@ -192,38 +192,39 @@ ChatDialog::ChatDialog(QStringList args)
 
 	QVBoxLayout *textAndPeers = new QVBoxLayout();
 	textAndPeers->addLayout(privMsgLayout);
-	textAndPeers->addLayout(peerEntryLayout);
+	textAndPeers->addWidget(shareButton);
+//	textAndPeers->addLayout(peerEntryLayout);
 
-	QHBoxLayout *files = new QHBoxLayout();
-	files->addWidget(dlButton);
-	files->addWidget(shareButton);
+//	QHBoxLayout *files = new QHBoxLayout();
+//	files->addWidget(dlButton);
+//	files->addWidget(shareButton);
 
 
-    QPixmap pixmap(100,100);
-    pixmap.fill(QColor("transparent"));
+//    QPixmap pixmap(100,100);
+//    pixmap.fill(QColor("transparent"));
 
-    QPainter painter(&pixmap);
-    painter.setBrush(QBrush(Qt::black));
-    painter.drawRect(20, 10, 100, 100);
+//    QPainter painter(&pixmap);
+//    painter.setBrush(QBrush(Qt::black));
+ //   painter.drawRect(20, 10, 100, 100);
 
-    QLabel* al = new QLabel;
-    al->setPixmap(pixmap);
+//    QLabel* al = new QLabel;
+//    al->setPixmap(pixmap);
 
 
 	QVBoxLayout *fileEntry = new QVBoxLayout();
 	fileEntry->addWidget(dlLabel);
 	fileEntry->addWidget(dlList);
-	fileEntry->addWidget(fileSearchLabel);
-	fileEntry->addWidget(fileSearch);
-	fileEntry->addLayout(files);
+//	fileEntry->addWidget(fileSearchLabel);
+//	fileEntry->addWidget(fileSearch);
+//	fileEntry->addLayout(files);
 
 	// resize
 	layout->addLayout(textAndPeers, 1, 0);
 	layout->addLayout(fileEntry, 1, 1);
-	layout->addWidget(al, 1, 2);
+//	layout->addWidget(al, 1, 2);
 	layout->setColumnStretch(0, 1);
 	layout->setColumnStretch(1, 2);
-	layout->setColumnStretch(2, 2);
+//	layout->setColumnStretch(2, 2);
 	setLayout(layout);
 
 	seqNo = 1;
@@ -248,14 +249,14 @@ ChatDialog::ChatDialog(QStringList args)
 	connect(&sock, SIGNAL(readyRead()),
 			this, SLOT(incomingMessage()));
 	// Register newly IP/Port or DNS origin/port to message
-	connect(peerEntry, SIGNAL(returnPressed()),
-			this, SLOT(processPeer()));
+//	connect(peerEntry, SIGNAL(returnPressed()),
+//			this, SLOT(processPeer()));
 	// Register button click to open file selection dialog box
 	connect(shareButton, SIGNAL(clicked()),
 			this, SLOT(shareFile()));
 	// Register button click to open file download box
-	connect(dlButton, SIGNAL(clicked()),
-			this, SLOT(startDownload()));
+//	connect(dlButton, SIGNAL(clicked()),
+//			this, SLOT(startDownload()));
 	// Register enter to start file search
 	connect(fileSearch, SIGNAL(returnPressed()),
 			this, SLOT(createSearchRequest()));
@@ -613,7 +614,6 @@ void ChatDialog::checkInfo(QHostInfo host)
 		return;
 	}
 	foreach (const QHostAddress &address, host.addresses()) {
-		//qDebug() << "Found address:" << address.toString() << host.hostName();
 		for (int i = 0; i < maybePeers.size(); i++) {
 			Peer newPeer = Peer(address, maybePeers.at(i).at(1).toInt());
 			if (!peers.contains(newPeer) && 
@@ -692,8 +692,6 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				processBlockReply(msg);
 			else if (msg.contains("SeedRequest"))
 				replySeeders(msg);
-			else if (msg.contains("SeedReply"))
-				sendBlockRequestToSeeders(msg);
 			else if (msg.contains("UploadNotice"))
 				readUploadNotice(msg);
 			else if (msg.contains("SeedReply"))
