@@ -63,12 +63,6 @@ public:
 	/* Returns index of given string in DHT			*/
 	int getLocation(QString);
 
-	/* Returns number of seeds for given file		*/
-	int getNumSeeds(QString);
-
-	/* Returns number of blocks for given file		*/
-	int getNumBlocks(QString);
-
 	/* Returns either predecessor in finger table of
 		file, or actual tracker if that is known
 
@@ -76,17 +70,6 @@ public:
 		must message that node to confirm status
 		as tracker for given file					*/
 	QString getTracker(QString);
-
-	/* Returns seeds for given file					*/
-	QStringList getSeeders(QString);
-
-	/* Returns blocklist hash for given file		*/
-	QByteArray getBytes(QString);
-
-	/* Returns metafile ID for given file			*/
-	QByteArray getMeta(QString);
-
-private:
 
 	/* returns true if in order in cycle, else false
 		This means that when given A, B, C as args,
@@ -96,6 +79,8 @@ private:
 		- B < C < A
 		Else it returns false						*/
 	bool assertOrder(int, int, int);
+
+private:
 
 	/* Node's index in table */
 	int myLoc;

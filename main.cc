@@ -16,7 +16,7 @@
 #include <QFileDialog>
 #include <QtCrypto>
 #include <QCryptographicHash>
- #include <QPainter>
+#include <QPainter>
 
 #include "main.hh"
 #include "NetSocket.hh"
@@ -347,20 +347,64 @@ void ChatDialog::addFilesForSharing(QStringList files)
 			QByteArray metaHash = shaHash.final().toByteArray();
 			shaHash.clear();
 
-			FileMetadata newFile(file, info.fileName(),
+			QString fn = info.fileName();
+
+			// Upload (for use as a seeder)
+			FileMetadata newFile(file, fn,
 					info.size(), blocklistHash, metaHash);
 			filesForDL.append(newFile);
 
-			// Add file to tracked files (with self as first seeder)
-			TrackedFileMetadata tracked(info.fileName(), blockCount, blocklistHash,
-				metaHash, myOrigin);
-			filesTracking.append(tracked);
+			// Forward to tracker / along chord table
+			QString target = chord->getTracker(fn);
+
+			QVariantMap msg;
+			msg.insert("UploadNotice", fn);
+			msg.insert("Seeder", myOrigin);
+			msg.insert("BlockCount", blockCount);
+			msg.insert("BlockListHash", blocklistHash);
+			msg.insert("MetaHash", metaHash);
+			msg.insert(DEST, target);
+
+			QPair<QHostAddress, quint16> dest = dsdv.value(target);
+
+			if (target == myOrigin) {
+				readUploadNotice(msg);
+			}
+			else
+				send(serializeMsg(msg), Peer(dest.first, dest.second));
+
+			// Add file to tracked files (with self as first seeder)/
+//			TrackedFileMetadata tracked(info.fileName(), blockCount, blocklistHash,
+//				metaHash, myOrigin);
+//			filesTracking.append(tracked);
 
 			// Announce you now have file
 			/////////// ADD : APPEND FILE TO UPLOADS DISPLAY
-			sendBroadcast();
-
 		}
+	}
+}
+
+void ChatDialog::readUploadNotice(QVariantMap msg) {
+
+	QString fn = msg["UploadNotice"].toString();
+	QString target = chord->getTracker(fn);
+
+	if (target == myOrigin) {
+		QString seeder = msg["Seeder"].toString();
+		int blockCount = msg["BlockCount"].toInt();
+		QByteArray blocklistHash = msg["BlockListHash"].toByteArray();
+		QByteArray metaHash = msg["MetaHash"].toByteArray();
+
+		TrackedFileMetadata tracked(fn, blockCount, blocklistHash,
+			metaHash, seeder);
+		filesTracking.append(tracked);
+
+		sendBroadcast();
+	}
+	else {
+		msg[DEST] = target;
+		QPair<QHostAddress, quint16> dest = dsdv.value(target);
+		send(serializeMsg(msg), Peer(dest.first, dest.second));
 	}
 }
 
@@ -384,6 +428,7 @@ void ChatDialog::sendBroadcast()
 	if (!peers.isEmpty())
 		forwardAll(msg);
 
+	readBroadcast(msg);
 }
 
 void ChatDialog::readBroadcast(QVariantMap msg)
@@ -417,10 +462,10 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 	int index = dlList->row(clicked);
 	dlList->takeItem(index);
 
-	if (!availableFiles.contains(file)) {
-		qDebug() << "AVF error";
-		return;
-	}
+//	if (!availableFiles.contains(file)) {
+	//	qDebug() << "AVF error";
+//		return;
+//	}
 
 	// Get initial tracker from chord table
 	QString target = chord->getTracker(file);
@@ -444,22 +489,35 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 	// If we are tracker, just pass the data internally
 	else {
 
+		TrackedFileMetadata *found;
+		bool blergh = false;
+		foreach(TrackedFileMetadata meta, filesTracking) {
+			if (meta.fileName == file) {
+				found = &meta;
+				blergh = true;
+				break;
+			}
+		}
+		if (!blergh) {
+			qDebug() << "info not in trackedfilemetadataasfes";
+			return;
+		}
+
 		QVariantMap reply;
 		reply.insert(DEST, target);
 		reply.insert(ORIGIN, myOrigin);
 		reply.insert("SeedReply", file);
-		reply.insert("MetaFileID", chord->getMeta(file));
-		reply.insert("BlockListHash", chord->getBytes(file));
-		reply.insert("Seeders", chord->getSeeders(file));
-		reply.insert("BlockCount", chord->getNumBlocks(file));
+		reply.insert("MetaFileID", found->metaHash);
+		reply.insert("BlockListHash", found->blocklistHash);
+		reply.insert("Seeders", found->seeders);
+		reply.insert("BlockCount", found->blockCount);
 
+		qDebug() << "I HAVE THE SEEDERS ALREADYYYY";
+		qDebug() << "Passing to meeee";
+		qDebug() << reply;
 	//	sendBlockRequestToSeeders(reply);
 
 		// If we are not seeding already, add us to list of seeders
-		QStringList seeds = chord->getSeeders(file);
-
-		if (!seeds.contains(myOrigin))
-			chord->addSeed(myOrigin, file);
 	}
 }
 
@@ -467,31 +525,42 @@ void ChatDialog::replySeeders(QVariantMap msg)
 {
 	QString file = msg["SeedRequest"].toString();
 
+	QString requestor = msg[ORIGIN].toString();
+
 	// If I have the data for this file
-	if (chord->getTracker(file) == myOrigin) {
+	if ((chord->getTracker(file)) == myOrigin) {
 
-		QString requestor = msg[ORIGIN].toString();
+		TrackedFileMetadata *found;
+		bool blergh = false;
+		foreach(TrackedFileMetadata meta, filesTracking) {
+			if (meta.fileName == file) {
+				found = &meta;
+				blergh = true;
+				break;
+			}
+		}
+		if (!blergh) {
+			qDebug() << "info not in trackedfilemetadataasfes";
+			return;
+		}
 
-		// Collect all relevant data
 		QVariantMap reply;
 		reply.insert(DEST, requestor);
 		reply.insert(ORIGIN, myOrigin);
-		reply.insert("SeedReply", msg["SeedRequest"]);
-		reply.insert("MetaFileID", chord->getMeta(file));
-		reply.insert("BlockListHash", chord->getBytes(file));
-		reply.insert("Seeders", chord->getSeeders(file));
-		reply.insert("BlockCount", chord->getNumBlocks(file));
+		reply.insert("SeedReply", file);
+		reply.insert("MetaFileID", found->metaHash);
+		reply.insert("BlockListHash", found->blocklistHash);
+		reply.insert("Seeders", found->seeders);
+		reply.insert("BlockCount", found->blockCount);
 
 		// And send it back to who requested it
-		QPair<QHostAddress, quint16> dest = dsdv.value(msg[ORIGIN].toString());
+		QPair<QHostAddress, quint16> dest = dsdv.value(requestor);
 		send(serializeMsg(reply), Peer(dest.first, dest.second));
 
 		// Then add them as a seeder, if they are not already
-		QStringList seeds = chord->getSeeders(file);
-
-		if (!seeds.contains(requestor))
-			chord->addSeed(requestor, file);
-
+		
+		qDebug() << "Sending along data ";
+		qDebug() << reply;
 	}
 	// Otherwise
 	else {
@@ -694,6 +763,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				replySeeders(msg);
 			else if (msg.contains("SeedReply"))
 				sendBlockRequestToSeeders(msg);
+			else if (msg.contains("UploadNotice"))
+				readUploadNotice(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -1459,6 +1530,7 @@ void ChatDialog::updateDSDV(QString origin, QHostAddress sender, quint16 senderP
 			}
 		if (!found)
 			privateList->addItem(new QListWidgetItem(origin));
+		chord->updateFingers(origin);
 	}
 	//qDebug() << "Updated dsdv for:" << origin;
 	//qDebug() << dsdv.value(origin);

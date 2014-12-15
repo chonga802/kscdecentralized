@@ -66,6 +66,7 @@ public:
 	void startNextDownload();
 
 	void readBroadcast(QVariantMap msg);
+	void readUploadNotice(QVariantMap msg);
 
 	void pingRandomPeer();
 	QByteArray serializeMsg(QVariantMap);

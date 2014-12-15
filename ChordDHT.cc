@@ -141,30 +141,6 @@ int ChordDHT::getLocation(QString id) {
 
 }
 
-
-int ChordDHT::getNumSeeds(QString name) {
-
-	if(!fileMetaMap.contains(name)) {
-		qDebug() << "ERROR: File" << name << "not found.";
-		return 0;
-	}
-	else
-		return fileSeedMap.value(name).size();
-}
-
-
-int ChordDHT::getNumBlocks(QString name) {
-
-	if(!fileHashMap.contains(name)) {
-		qDebug() << "ERROR: File" << name << "not found.";
-		return 0;
-	}
-	else {
-		QByteArray blockList = fileHashMap.value(name);
-		return blockList.size() / 20;
-	}
-}
-
 /* TODO: TEST THIS THOROUGHLY
 *
 *	seems okay right now? tested on a couple cases
@@ -177,7 +153,7 @@ QString ChordDHT::getTracker(QString name) {
 	int fileLoc, fin, step;
 
 	/* Check if I have the file, return my ID if so */
-	if (fileHashMap.contains(name)) {
+	if (assertOrder(myLoc, predLoc, getLocation(name))) {
 		qDebug() << "\tI'VE GOT IT";
 		return myID;
 	}
@@ -197,45 +173,6 @@ QString ChordDHT::getTracker(QString name) {
 		}
 		return finger[fin];
 	}
-}
-
-
-QStringList ChordDHT::getSeeders(QString name) {
-
-	// Check if we have file, return if so
-	if(fileSeedMap.contains(name))
-		return fileSeedMap.value(name);
-
-	// else throw error, return empty list
-	else
-		qDebug() << "ERROR: file" << name << "not found.";
-
-	/* questionable return, should think about this */
-	return QStringList("");
-}
-
-
-QByteArray ChordDHT::getBytes(QString name) {
-
-	if(fileHashMap.contains(name))
-		return fileHashMap.value(name);
-
-	else
-		qDebug() << "ERROR: file" << name << "not found.";
-
-	return NULL;
-}
-
-
-QByteArray ChordDHT::getMeta(QString name) {
-
-	if(fileMetaMap.contains(name))
-		return fileMetaMap.value(name);
-
-	else
-		qDebug() << "ERROR: file" << name << "not found.";
-
-	return NULL;
 }
 
 
