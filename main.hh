@@ -55,10 +55,7 @@ public:
 	void send(QByteArray, Peer);
 	void forwardAll(QVariantMap);
 	void processMessage(QByteArray, QHostAddress, quint16);
-	//void processBlockRequest(QVariantMap);
-	//void processBlockReply(QVariantMap);
 	void readRumor(QVariantMap, QHostAddress, quint16);
-	void printRumor(QVariantMap);
 	void checkStatus(QVariantMap, QHostAddress, quint16);
 	void sendStatus(QHostAddress, quint16);
 	void processSearchRequest(QVariantMap);
@@ -74,7 +71,6 @@ public:
 	QVariantMap getMyStatus();
 	Peer getRandomPeer();
 	void dumpPeerData();
-	void dumpReadMsgs();
 
 	void addTimer();
 	void killRequestTimer();
@@ -91,7 +87,6 @@ public:
 	void finishNonSeqDL();
 
 public slots:
-	void gotReturnPressed();
 	void incomingMessage();
 	void timedOutWaiting();
 	void preventEntropy();
@@ -102,16 +97,7 @@ public slots:
 
 	void shareFile();
 	void addFilesForSharing(QStringList);
-	void resendRequest();
 
-	void privateMessage(QListWidgetItem*);
-	void sendPrivateMessage(QString msg, QString buddy);
-
-	void createSearchRequest();
-	void resendSearch();
-
-	void startDownload();
-	void startDownload(QString, QString);
 	void requestSeeders(QListWidgetItem*);
 	void replySeeders(QVariantMap msg);
 
@@ -131,7 +117,6 @@ private:
 	QListWidget *privateList;
 	quint32 seqNo;
 	quint32 failedDLNum;
-	bool noForward;
 	bool downloading;
 
 	// Maps of origin to wanted message
