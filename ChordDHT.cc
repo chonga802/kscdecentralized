@@ -14,6 +14,7 @@ ChordDHT::ChordDHT(QString id) {
 
 	/* initially, predecessor is self - only one in network */
 	predLoc = myLoc;
+	predID = myID;
 
 	two = 1;
 	for (i = 0; i < 8; i++) {
@@ -23,53 +24,14 @@ ChordDHT::ChordDHT(QString id) {
 	}
 }
 
-/* seems to be working */
-void ChordDHT::addFile(QString name,
-		QByteArray metaID,
-		QString seed,
-		QByteArray bytes) {
-
-	if (fileMetaMap.contains(name))
-		qDebug() << "ERROR: File already inserted, overwriting";
-
-	fileSeedMap.insert(name, QStringList(seed));
-	fileHashMap.insert(name, bytes);
-	fileMetaMap.insert(name, metaID);
-}
-
-/* working */
-void ChordDHT::addSeed(QString name, QString seed) {
-
-	QStringList seeds;
-
-	// extract all current seeds for file
-	seeds = fileSeedMap.value(name);
-
-	// append new seed to list
-	seeds.append(seed);
-
-	// reinsert
-	fileSeedMap.insert(name, seeds);
-}
-
-/* TODO: TEST THE SHIT OUT OF THIS
-*
-*	- peer updating appears to work correctly
-*	- as does predecessor calculation
-*
-*	- need to do sharing files with predecessor
-*/
 bool ChordDHT::updateFingers(QString peerID) {
 	int peerLoc, fingerLoc, startLoc, d, i;
 
 	// get location of new peer in table
 	peerLoc = getLocation(peerID);
 
-//	qDebug() << "Checking fingers for new friend" << peerID << "at" << peerLoc;
-
 	if (peerLoc == myLoc) {
-		qDebug() << "NODE COLLISION: #FUCKED";
-		qDebug() << "\t" << myID << "," << peerID;
+		qDebug() << "NODE COLLISION" << myID << "," << peerID;
 	}
 
 	d = 1;
@@ -98,31 +60,31 @@ bool ChordDHT::updateFingers(QString peerID) {
 		d *= 2;
 	}
 
-	if (predLoc == myLoc)
-		predLoc = peerLoc;
 	// check if new peer is your immediate predecessor
-	else if (assertOrder(predLoc, peerLoc, myLoc))
+	if (predLoc == myLoc) {
 		predLoc = peerLoc;
+		predID = myID;
+	}
+	else if (assertOrder(predLoc, peerLoc, myLoc)) {
+		predLoc = peerLoc;
+		predID = peerID;
+	}
 
-
+	// Display state
 	qDebug() << "New state of" << myID;
 	qDebug() << "\tpredLoc is" << predLoc;
 	for (i = 0; i < 8; i++) {
 		qDebug() << "\tFinger" << i << ":" << finger[i];
 	}
 
-	// if new predecessor, then must pass it files, return true
+	// If new predecessor, then must pass it files, return true
 	if (peerLoc == predLoc) {
 		return true;
 	}
 	return false;
 }
 
-/* seems to be working consistently, should test x-platform */
 int ChordDHT::getLocation(QString id) {
-
-// Adopted from
-// http://stackoverflow.com/questions/22000005/built-in-64-bit-hash-function-for-qstring
 
 	//Generate hash
 	QByteArray hash = QCryptographicHash::hash(id.toUtf8(), QCryptographicHash::Sha1);
@@ -135,17 +97,11 @@ int ChordDHT::getLocation(QString id) {
 	qint64 a, b;
 	stream >> a >> b;
 
-//	qDebug() << id << "," << (((a ^ b) % 256) + 256) % 256;
 	// return XOR of bits, mod 256 = pow(2, 8)
 	return (((a ^ b) % 256) + 256) % 256;
 
 }
 
-/* TODO: TEST THIS THOROUGHLY
-*
-*	seems okay right now? tested on a couple cases
-*
-*/
 QString ChordDHT::getTracker(QString name) {
 
 	qDebug() << "FINDING:" << name;
@@ -174,7 +130,6 @@ QString ChordDHT::getTracker(QString name) {
 		return finger[fin];
 	}
 }
-
 
 bool ChordDHT::assertOrder(int a, int b, int c) {
 

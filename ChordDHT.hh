@@ -22,26 +22,6 @@
 #include <QMap>
 #include <QPair>
 
-/*
-	//TEST CODE FOR MAIN
-
-	ChordDHT fuckit("Sagey");
-
-	fuckit.updateFingers("Friend!");
-	fuckit.updateFingers("Enemy");
-	fuckit.updateFingers("Boss!");
-	fuckit.updateFingers("Rando!");
-	fuckit.updateFingers("mothafucka");
-	fuckit.updateFingers("t");
-
-	fuckit.addFile("pray", QByteArray(), "Myself", QByteArray());
-
-	qDebug() << "testing owned by" << fuckit.getTracker("testing", QByteArray());
-	qDebug() << "Space Jam owned by" << fuckit.getTracker("Space Jam", QByteArray());
-	qDebug() << "lolz owned by" << fuckit.getTracker("lolz", QByteArray());
-	qDebug() << "pray owned by" << fuckit.getTracker("pray", QByteArray());
-*/
-
 class ChordDHT
 {
 public:
@@ -49,13 +29,6 @@ public:
 	/* Constructs new empty ChordDHT:
 		fills all finger entriew with given id		*/
 	ChordDHT(QString);
-
-	/* Adds file to this nodes maps, should only be
-		called the first time a file is uploaded	*/
-	void addFile(QString, QByteArray, QString, QByteArray);
-
-	/* Adds node as a seed for specified file		*/
-	void addSeed(QString, QString);
 
 	/* Updates finger table with peerID				*/
 	bool updateFingers(QString);
@@ -85,29 +58,20 @@ private:
 	/* Node's index in table */
 	int myLoc;
 
+	/* Node's predecessor */
+	int predLoc;
+
 	/* Node's id */
 	QString myID;
 
-	/* Node's predecessor */
-	int predLoc;
+	/* Predecessor's id */
+	QString predID;
 
 	/* Finger table:
 		each entry is the nearest successor to
 		locations (my location) + 2^(finger #),
 	   Initially all entries are self		*/
 	QString finger[8];
-
-	/* Key:		File name
-	   Value:	List of known seeds for key	*/
-	QMap<QString, QStringList> fileSeedMap;
-
-	/* Key:		File name
-	   Value:	Blocklist hash for the file	*/
-	QMap<QString, QByteArray> fileHashMap;
-
-	/* Key:		File name
-	   Value:	Metafile ID for the file	*/
-	QMap<QString, QByteArray> fileMetaMap;
 
 };
 
