@@ -48,6 +48,45 @@ QString MATCH_IDS = "MatchIDs";
 // ChatDialog
 ////////////////////////////////////////////////////////////////
 
+Visualizer::Visualizer() {
+
+	for (int i = 0; i < 100; i++) {
+		blockPos[i] = 0;
+	}
+	this->resize(500,500);
+}
+
+void Visualizer::paintEvent(QPaintEvent *)
+{
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    painter.setPen(Qt::darkGreen);
+    painter.setBrush(Qt::darkGreen);
+
+    for(int c=0; c<100; c++) {
+    	int i = c%10;
+    	int j = c/10;
+    	int x = i*50;
+    	int y = j*50;
+    	if (blockPos[c] == 0) {
+		    painter.setBrush(Qt::darkRed);
+    	}
+    	else if (blockPos[c]%3 == 0) {
+		    painter.setBrush(Qt::darkGreen);
+    	}
+    	else if (blockPos[c]%3 == 1) {
+		    painter.setBrush(Qt::darkBlue);
+    	}
+    	else if (blockPos[c]%3 == 2) {
+		    painter.setBrush(Qt::darkCyan);
+    	}
+
+	    painter.drawRect(x, y, 40, 40);
+    }
+
+}
+
 InitDialog::InitDialog() {
 
 	layout = new QGridLayout();
@@ -125,7 +164,7 @@ void InitDialog::loadID() {
 		progressLabel->setText(newID);
 		setLayout(fullLayout);
 	//}
-		if (rand() % 1000 == 0)
+		if (rand() % 10 == 0)
 		QCoreApplication::processEvents();
 
 		if (thingy == 42) {
@@ -134,10 +173,13 @@ void InitDialog::loadID() {
 		}
 	}
 
-	ChatDialog *dialog = new ChatDialog(QStringList(""));
+	QStringList args;
+	args.append(newID);
+	args.append(p);
+	ChatDialog *dialog = new ChatDialog(args);
 	dialog->show();
 
-
+	this->close();
 }
 
 
@@ -149,9 +191,16 @@ ChatDialog::ChatDialog(QStringList args)
 
 	qsrand(QTime::currentTime().msec()+1);
 	// Hack to construct unique origin identifier
-	myOrigin = "SAGE_";
-	myOrigin.append(QString::number((1+QTime::currentTime().msec())
-			* qrand()%1000000));
+//	myOrigin = "SAGE_";
+//	myOrigin.append(QString::number((1+QTime::currentTime().msec())
+//			* qrand()%1000000));
+	if (args.size() > 0)
+		myOrigin = args[0];
+	else
+		myOrigin = (QString::number((1+QTime::currentTime().msec()) * qrand()%1000000));
+
+	if (args.size() > 1)
+		processArgs(QStringList(args[1]));
 
 	chord = new ChordDHT(myOrigin);
 
@@ -165,7 +214,7 @@ ChatDialog::ChatDialog(QStringList args)
 	userInput = new SageTextEdit();
 
 	fileSearch = new QLineEdit();
-	QLabel* fileSearchLabel = new QLabel("Enter file to search for:", fileSearch);
+//	QLabel* fileSearchLabel = new QLabel("Enter file to search for:", fileSearch);
 	shareButton = new QPushButton("Share file", this);
 	shareButton->setAutoDefault(false);
 //	dlButton = new QPushButton("Download file", this);
@@ -174,10 +223,11 @@ ChatDialog::ChatDialog(QStringList args)
 	QLabel* dlLabel = new QLabel("Torrents available:", dlList);
 
 	peerEntry = new QLineEdit();
-	QLabel* peerLabel = new QLabel("Add peer:", peerEntry);
+//	QLabel* peerLabel = new QLabel("Add peer:", peerEntry);
 
-	privateList = new QListWidget(this);
-	QLabel* privateListLabel = new QLabel("Seeding:", privateList);
+	privateList = new QListWidget();
+	QLabel* privateListLabel = new QLabel("Seeding:");
+	uploadList = new QListWidget(this);
 
 	// Lay out the widgets to appear in the main window.
 	QGridLayout *layout = new QGridLayout();
@@ -186,12 +236,13 @@ ChatDialog::ChatDialog(QStringList args)
 //	peerEntryLayout->addWidget(peerLabel);
 //	peerEntryLayout->addWidget(peerEntry);
 
-	QVBoxLayout *privMsgLayout = new QVBoxLayout();
-	privMsgLayout->addWidget(privateListLabel);
-	privMsgLayout->addWidget(privateList);
+//	QVBoxLayout *privMsgLayout = new QVBoxLayout();
+//	privMsgLayout->addWidget(privateListLabel);
+//	privMsgLayout->addWidget(uploadList);
 
 	QVBoxLayout *textAndPeers = new QVBoxLayout();
-	textAndPeers->addLayout(privMsgLayout);
+	textAndPeers->addWidget(privateListLabel);
+	textAndPeers->addWidget(uploadList);
 	textAndPeers->addWidget(shareButton);
 //	textAndPeers->addLayout(peerEntryLayout);
 
@@ -239,12 +290,12 @@ ChatDialog::ChatDialog(QStringList args)
 		if (sock.getMyPort() != i)
 			peers.append(Peer(QHostAddress(QHostAddress::LocalHost), i));
 
-	processArgs(args);
+//	processArgs(args);
 
 	// Register a callback on the userInput's returnPressed signal
 	// so that we can send the message entered by the user.
-	connect(userInput, SIGNAL(sageReturnPressed()),
-			this, SLOT(gotReturnPressed()));
+//	connect(userInput, SIGNAL(sageReturnPressed()),
+//			this, SLOT(gotReturnPressed()));
 	// Register incoming message so we can process accordingly
 	connect(&sock, SIGNAL(readyRead()),
 			this, SLOT(incomingMessage()));
@@ -258,8 +309,8 @@ ChatDialog::ChatDialog(QStringList args)
 //	connect(dlButton, SIGNAL(clicked()),
 //			this, SLOT(startDownload()));
 	// Register enter to start file search
-	connect(fileSearch, SIGNAL(returnPressed()),
-			this, SLOT(createSearchRequest()));
+//	connect(fileSearch, SIGNAL(returnPressed()),
+//			this, SLOT(createSearchRequest()));
 	connect(dlList, SIGNAL(itemClicked(QListWidgetItem *)),
 			this, SLOT(requestSeeders(QListWidgetItem *)));
 
@@ -276,7 +327,6 @@ ChatDialog::ChatDialog(QStringList args)
 	broadcastTimer = new QTimer(this);
 	connect(broadcastTimer, SIGNAL(timeout()), this, SLOT(sendBroadcast()));
 	broadcastTimer->start(10000);
-
 
 	sendRoute();
 
@@ -337,6 +387,8 @@ void ChatDialog::addFilesForSharing(QStringList files)
 					info.size(), blocklistHash, metaHash);
 			filesForDL.append(newFile);
 
+			uploadList->addItem(new QListWidgetItem(fn));
+
 			// Forward to tracker / along chord table
 			QString target = chord->getTracker(fn);
 
@@ -353,9 +405,10 @@ void ChatDialog::addFilesForSharing(QStringList files)
 			if (target == myOrigin) {
 				readUploadNotice(msg);
 			}
-			else
+			else {
+				qDebug() << "pass responsibility for file to " + target;
 				send(serializeMsg(msg), Peer(dest.first, dest.second));
-
+			}
 			// Add file to tracked files (with self as first seeder)/
 //			TrackedFileMetadata tracked(info.fileName(), blockCount, blocklistHash,
 //				metaHash, myOrigin);
@@ -371,8 +424,11 @@ void ChatDialog::readUploadNotice(QVariantMap msg) {
 
 	QString fn = msg["UploadNotice"].toString();
 	QString target = chord->getTracker(fn);
+	qDebug() << "upload notice passed to  " + target;
 
 	if (target == myOrigin) {
+		qDebug() << "now tracking " + fn;
+
 		QString seeder = msg["Seeder"].toString();
 		int blockCount = msg["BlockCount"].toInt();
 		QByteArray blocklistHash = msg["BlockListHash"].toByteArray();
@@ -424,6 +480,7 @@ void ChatDialog::readBroadcast(QVariantMap msg)
 	while (mapIter.hasNext()) {
 		mapIter.next();
 		if (!availableFiles.contains(mapIter.key())) {
+
 			bool uploaded = false;
 			foreach(FileMetadata data, filesForDL) {
 				if (data.fileName == mapIter.key())
@@ -466,6 +523,7 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 		request.insert("SeedRequest", file);
 
 		QPair<QHostAddress, quint16> dest = dsdv.value(target);
+
 		send(serializeMsg(request), Peer(dest.first, dest.second));
 
 	//	requestTimer = new QTimer(this);
@@ -505,7 +563,7 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 		qDebug() << "I HAVE THE SEEDERS ALREADYYYY";
 		qDebug() << "Passing to meeee";
 	//	qDebug() << reply;
-	//	sendBlockRequestToSeeders(reply);
+		sendBlockRequestToSeeders(reply);
 
 
 	// If we are not seeding already, add us to list of seeders
@@ -563,6 +621,7 @@ void ChatDialog::replySeeders(QVariantMap msg)
 		reply.insert("BlockListHash", found->blocklistHash);
 		reply.insert("Seeders", found->seeders);
 		reply.insert("BlockCount", found->blockCount);
+		reply.insert("SeederRep", repTracking);
 
 		// And send it back to who requested it
 		QPair<QHostAddress, quint16> dest = dsdv.value(requestor);
@@ -570,7 +629,9 @@ void ChatDialog::replySeeders(QVariantMap msg)
 
 		// TODO: Then add them as a seeder, if they are not already
 		
-		qDebug() << "Sending along data ";
+		qDebug() << "Sending along data about " + file + " to " + requestor + " at " + QString::number(dest.second);
+		qDebug() << "Msg target = " + reply[DEST].toString();
+		qDebug() << reply;
 	//	qDebug() << reply;
 
 		QStringList intermediary = found->seeders;
@@ -636,6 +697,7 @@ void ChatDialog::processPeer()
 
 void ChatDialog::processArgs(QStringList args)
 {
+
 	QHostAddress notIP = QHostAddress("");
 	for (int i = 0; i < args.size(); i++) {
 		// separate into ip/dns and port
@@ -643,6 +705,8 @@ void ChatDialog::processArgs(QStringList args)
 		QString ip = args.at(i).section(':', 0, colonCount-1);
 		QString port = args.at(i).section(':', colonCount, colonCount);
 		// if no colon, invalid, drop it
+
+		qDebug() << "Linking with " + ip;
 		if (port == ip)
 			return;
 
@@ -720,6 +784,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 	QVariantMap msg;
 	QDataStream inStream(&bytes, QIODevice::ReadWrite);
 	inStream >> msg;
+//	qDebug() << "message in";
+//	qDebug() << msg;
 
 	if (!peers.contains(Peer(sender, senderPort)))
 		peers.append(Peer(sender, senderPort));
@@ -737,6 +803,7 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 	// Directed messages
 	else if (msg.contains(DEST)) {
 		QString dest = msg.value(DEST).toString();
+		qDebug() << "got direct message";
 
 		if (dest == myOrigin) {
 			if (msg.contains(BLOCK_REQUEST))
@@ -749,6 +816,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				readUploadNotice(msg);
 			else if (msg.contains("SeedReply"))
 				sendBlockRequestToSeeders(msg);
+			else if (msg.contains("RepReport"))
+				readRepReport(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -772,11 +841,44 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 
 void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
 
+	visual = new Visualizer();
+	visual->show();
+
 	qDebug()<<"send block request to seeders";
 	QByteArray fileID = msg.value("MetaFileID").toByteArray();
 	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
 	QStringList seeders = msg.value("Seeders").toStringList();
 	int blockCount = msg.value("BlockCount").toInt();
+	currentTracker = msg.value(ORIGIN).toString();
+	QVariantMap seederReps = msg.value("SeederRep").toMap();
+
+/*	topSeeders.clear();
+	excludeSeeders = (seederReps.size() >= 2);
+	if (excludeSeeders) {
+		int x = -1; int y = -1;
+
+		QVariantMap::iterator i;
+		for (i = seederReps.begin(); i != seederReps.end(); ++i) {
+	     	if (i.value().toInt() > x)
+	     		x = i.value().toInt();
+	     	else if (i.value().toInt() > y)
+	     		y = i.value().toInt();
+	    }
+
+		QVariantMap::iterator j;
+		for (j = seederReps.begin(); j != seederReps.end(); ++j) {
+	     	if (j.value().toInt() == x) {
+	     		x = -1;
+	     		topSeeders.append(j.key());
+     		}
+     		else if (j.value().toInt() == y) {
+	     		y = -1;
+	     		topSeeders.append(j.key());
+	     	}
+     	}
+     	qDebug() << "only using " + topSeeders.join(" ");
+     }
+*/
 	qDebug()<<"seeders="<<seeders<<", blockCount="<<blockCount;
 	//fill blocksLeft
 	blocksLeft.clear();
@@ -786,8 +888,12 @@ void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
 	qDebug()<<"blocksLeft="<<blocksLeft;
 	//request blocks from seeders until you have all of them
 	int numBlocksLeft = blocksLeft.length();
+
 	//for every seeder request different block
 	for(int i = 0; i < seeders.size(); i++){
+//		if (excludeSeeders && !topSeeders.contains(seeders.at(i)))
+//			continue;
+		repReport[seeders.at(i)] = 0;
 		int blockNum = blocksLeft.at(i % numBlocksLeft);
 		//send block request to seeder
 		sendBlockRequest(blockNum, seeders.at(i), fileID, blockListHash);
@@ -850,23 +956,50 @@ void ChatDialog::sendBlockReply(QVariantMap msg){
 }
 
 void ChatDialog::processBlockReply(QVariantMap msg){
-	qDebug()<<"process block reply";
+
 	QByteArray fileID = msg.value("MetaFileID").toByteArray();
 	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
 	QString seeder = msg.value("Origin").toString();
 	QByteArray data = msg.value("FileBlock").toByteArray();
 	int blockNum = msg.value("BlockNum").toInt();
+
+	qDebug()<<"process block reply from " + seeder;
+
+	if (repReport.contains(seeder))
+		repReport[seeder] = repReport[seeder].toInt()+1;
+	else
+		repReport[seeder] = 1;
+
+	qDebug() << repReport;
+
 	if(blocksLeft.contains(blockNum)){
 		//remove blockNum from blocksLeft
 		blocksLeft.removeAll(blockNum);
 		qDebug()<<"updated blocksLeft"<<blocksLeft;
 		//store file in blocksAcquired
 		blocksAcquired.insert(blockNum, data);
+
+		if (!topSeeders.contains(seeder))
+			topSeeders.append(seeder);
+
+		int color = topSeeders.indexOf(seeder)+2;
+
+		if (blockNum >= 0 && blockNum < 100) {
+			visual->blockPos[blockNum] = color;
+			visual->update();
+			visual->show();
+			QCoreApplication::processEvents();
+
+		}
+
 		//if still have blocks left you need, send block request to seeder
 		int numBlocksLeft = blocksLeft.length();
+
 		if(numBlocksLeft > 0){
 			int blockNum = blocksLeft.at(rand() % numBlocksLeft);
 			//send block request to seeder
+
+			Sleeper::msleep(10);
 			sendBlockRequest(blockNum, seeder, fileID, blockListHash);
 		}
 		//else, save the new file you have acquired to desktop
@@ -892,10 +1025,49 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 			FileMetadata newFile(info.filePath(), info.fileName(),
 					info.size(), blockListHash, fileID);
 			filesForDL.append(newFile);
+
+			uploadList->addItem(new QListWidgetItem(info.fileName()));
+
+			repReport[myOrigin] = 0;
+			sendRepReport();
 		}
 	}
 }
 
+
+//////////////////////////////////////////////////////////
+
+void ChatDialog::sendRepReport() 
+{
+	qDebug()<<"send rep report";
+	//construct block request
+	QVariantMap msg;
+	msg.insert("Dest", currentTracker);
+	msg.insert("Origin", myOrigin);
+	msg.insert("RepReport", repReport);
+
+	QPair<QHostAddress, quint16> dest = dsdv.value(currentTracker);
+	//qDebug() << "sending block request of" << blockRequest << "to" << dest.first << "," << dest.second;
+	send(serializeMsg(msg), Peer(dest.first, dest.second));	
+
+	repReport.clear();
+}
+
+void ChatDialog::readRepReport(QVariantMap msg) 
+{
+	qDebug()<<"read rep report";
+	//construct block request
+	QVariantMap report = msg.value("RepReport").toMap();
+
+	QVariantMap::iterator i;
+	for (i = report.begin(); i != report.end(); ++i) {
+     	if (repTracking.contains(i.key()))
+     		repTracking[i.key()] = repTracking[i.key()].toInt()+i.value().toInt();
+     	else
+     		repTracking[i.key()] = i.value().toInt();
+    }
+    qDebug() << repTracking;
+}
 
 ////////////////////////////RUMORS////////////////////////////
 void ChatDialog::readRumor(QVariantMap rumor, QHostAddress sender, quint16 senderPort)
@@ -1116,7 +1288,10 @@ void ChatDialog::updateDSDV(QString origin, QHostAddress sender, quint16 senderP
 			}
 		if (!found)
 			privateList->addItem(new QListWidgetItem(origin));
+
+		qDebug() << "New friend " + origin;
 		chord->updateFingers(origin);
+		// NEED MORE CODE HERE SAGE
 	}
 }
 
@@ -1186,11 +1361,20 @@ int main(int argc, char **argv)
 	args.removeFirst();
 
 	// Create an initial chat dialog window
-//	InitDialog *dialog = new InitDialog();
-	ChatDialog *dialog = new ChatDialog(args);
+
+	InitDialog *dialog = new InitDialog();
+//	ChatDialog *dialog = new ChatDialog(args);
 	
 	dialog->show();
+//
 
+//	for (int i=0; i<50000; i++) {
+//		int j = i%10000;
+//		if (j==0) {
+//		visual->blockPos[i/10000] = 1;
+//		visual->update();
+//	}
+//	}
 	// Enter the Qt main loop; everything else is event driven
 	return app.exec();
 }

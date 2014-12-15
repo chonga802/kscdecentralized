@@ -19,7 +19,7 @@ NetSocket::NetSocket()
 	// (which are quite possible).
 	// We use the range from 32768 to 49151 for this purpose.
 	myPortMin = 32768 + (getuid() % 4096)*4;
-	myPortMax = myPortMin + 3;
+	myPortMax = myPortMin + 7;
 
 	QHostInfo info = QHostInfo::fromName(QHostInfo::localHostName());
 	QList<QHostAddress> l= info.addresses();

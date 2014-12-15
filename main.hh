@@ -11,6 +11,7 @@
 #include <QListWidget>
 #include <QGridLayout>
 #include <QLabel>
+#include <QPaintEvent>
 
 #include "NetSocket.hh"
 #include "Peer.hh"
@@ -19,6 +20,34 @@
 #include "TrackedFileMetadata.hh"
 
 #include "ChordDHT.hh"
+#include <QThread>    
+
+class Sleeper : public QThread
+{
+public:
+    static void usleep(unsigned long usecs){QThread::usleep(usecs);}
+    static void msleep(unsigned long msecs){QThread::msleep(msecs);}
+    static void sleep(unsigned long secs){QThread::sleep(secs);}
+};
+
+class Visualizer : public QWidget
+{
+	Q_OBJECT
+
+public:
+	Visualizer();
+	void paintEvent(QPaintEvent *);
+	void updateImage();
+
+	int blockPos[100];
+
+private:
+
+
+public slots:
+
+
+};
 
 
 class InitDialog : public QDialog
@@ -85,6 +114,8 @@ public:
 	void startNonSeqDL();
 	void processNonSeqBlockResponse(QVariantMap response);
 	void finishNonSeqDL();
+	void sendRepReport() ;
+	void readRepReport(QVariantMap msg);
 
 public slots:
 	void incomingMessage();
@@ -115,6 +146,7 @@ private:
 	QListWidget *dlList;
 	QLineEdit *peerEntry;
 	QListWidget *privateList;
+	QListWidget *uploadList;
 	quint32 seqNo;
 	quint32 failedDLNum;
 	bool downloading;
@@ -166,6 +198,13 @@ private:
 
 	QList<int> blocksLeft; //blocks left to download from file
 	QMap<int, QByteArray> blocksAcquired; //file blocks acquired and saved
+	Visualizer *visual;
+
+	QString currentTracker;
+	QVariantMap repReport;
+	QVariantMap repTracking;
+	bool excludeSeeders;
+	QStringList topSeeders;
 };
 
 #endif // PEERSTER_MAIN_HH
