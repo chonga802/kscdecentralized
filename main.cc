@@ -424,6 +424,14 @@ void ChatDialog::readBroadcast(QVariantMap msg)
 	while (mapIter.hasNext()) {
 		mapIter.next();
 		if (!availableFiles.contains(mapIter.key())) {
+			bool uploaded = false;
+			foreach(FileMetadata data, filesForDL) {
+				if (data.fileName == mapIter.key())
+					uploaded = true;
+			}		
+			if (uploaded)
+				continue;
+
 			availableFiles[mapIter.key()] = origin;
 			QString pad = " ";
 			int padsize = 40 - mapIter.key().size();// - QString::number(mapIter.value().toInt()).size();
@@ -739,6 +747,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				replySeeders(msg);
 			else if (msg.contains("UploadNotice"))
 				readUploadNotice(msg);
+			else if (msg.contains("SeedReply"))
+				sendBlockRequestToSeeders(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -762,14 +772,18 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 
 void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
 
+	qDebug()<<"send block request to seeders";
 	QByteArray fileID = msg.value("MetaFileID").toByteArray();
 	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
 	QStringList seeders = msg.value("Seeders").toStringList();
 	int blockCount = msg.value("BlockCount").toInt();
+	qDebug()<<"seeders="<<seeders<<", blockCount="<<blockCount;
 	//fill blocksLeft
+	blocksLeft.clear();
 	for(int i = 0; i < blockCount; i++){
 		blocksLeft.append(i);
 	}
+	qDebug()<<"blocksLeft="<<blocksLeft;
 	//request blocks from seeders until you have all of them
 	int numBlocksLeft = blocksLeft.length();
 	//for every seeder request different block
@@ -784,13 +798,15 @@ void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
 
 void ChatDialog::sendBlockRequest(int blockNum, QString seeder, QByteArray fileID, QByteArray blockListHash)
 {
+	qDebug()<<"send block request";
 	//construct block request
 	QVariantMap blockRequest;
 	blockRequest.insert("Dest", seeder);
 	blockRequest.insert("Origin", myOrigin);
 	blockRequest.insert("BlockNum", blockNum);
 	blockRequest.insert("MetaFileID", fileID);
-	blockRequest.insert("BlockListHash", blockListHash);
+	blockRequest.insert("BlockRequest", blockListHash);
+	qDebug()<<"want blockNum"<<blockNum<<"from"<<seeder;
 	//send block request to target seeder
 	QPair<QHostAddress, quint16> dest = dsdv.value(seeder);
 	//qDebug() << "sending block request of" << blockRequest << "to" << dest.first << "," << dest.second;
@@ -798,10 +814,14 @@ void ChatDialog::sendBlockRequest(int blockNum, QString seeder, QByteArray fileI
 }
 
 void ChatDialog::sendBlockReply(QVariantMap msg){
+	qDebug()<<"send block reply";
 	QByteArray fileID = msg.value("MetaFileID").toByteArray();
-	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
+	QByteArray blockListHash = msg.value("BlockRequest").toByteArray();
+	msg.remove("BlockRequest");
+	msg.insert("BlockReply",blockListHash);
 	int blockNum = msg.value("BlockNum").toInt();
 	QString pathName;
+
 	//find fileName that matches fileID
 	for(int i = 0; i < filesForDL.size(); i++){
 		FileMetadata f = filesForDL.at(i);
@@ -830,6 +850,7 @@ void ChatDialog::sendBlockReply(QVariantMap msg){
 }
 
 void ChatDialog::processBlockReply(QVariantMap msg){
+	qDebug()<<"process block reply";
 	QByteArray fileID = msg.value("MetaFileID").toByteArray();
 	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
 	QString seeder = msg.value("Origin").toString();
@@ -838,6 +859,7 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 	if(blocksLeft.contains(blockNum)){
 		//remove blockNum from blocksLeft
 		blocksLeft.removeAll(blockNum);
+		qDebug()<<"updated blocksLeft"<<blocksLeft;
 		//store file in blocksAcquired
 		blocksAcquired.insert(blockNum, data);
 		//if still have blocks left you need, send block request to seeder
@@ -855,15 +877,25 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 				QByteArray block = blocksAcquired.value(i);
 				fileBlocks.append(block);
 			}
+			//empty blocksAcquired
+			blocksAcquired.clear();
 			//save file
 			QString fileName = msg.value("FileName").toString();
+			qDebug()<<"saving file "<<fileName;
 			QFile *savedFile = new QFile(fileName);
 			savedFile->open(QFile::WriteOnly);
 			savedFile->write(fileBlocks);
 			savedFile->close();
+
+			QFileInfo info(*savedFile);
+
+			FileMetadata newFile(info.filePath(), info.fileName(),
+					info.size(), blockListHash, fileID);
+			filesForDL.append(newFile);
 		}
 	}
 }
+
 
 ////////////////////////////RUMORS////////////////////////////
 void ChatDialog::readRumor(QVariantMap rumor, QHostAddress sender, quint16 senderPort)

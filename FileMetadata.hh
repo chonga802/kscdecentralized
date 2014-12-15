@@ -37,7 +37,7 @@ public:
 				fileSize == rhs.getFileSize());
 	}
 
-private:
+public:
 	QString fullName;
 	QString fileName;
 	int fileSize;

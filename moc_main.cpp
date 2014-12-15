@@ -96,7 +96,7 @@ static const uint qt_meta_data_ChatDialog[] = {
        6,       // revision
        0,       // classname
        0,    0, // classinfo
-      19,   14, // methods
+      11,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -105,39 +105,26 @@ static const uint qt_meta_data_ChatDialog[] = {
 
  // slots: signature, parameters, type, tag, flags
       12,   11,   11,   11, 0x0a,
-      31,   11,   11,   11, 0x0a,
-      49,   11,   11,   11, 0x0a,
-      67,   11,   11,   11, 0x0a,
-      84,   11,   11,   11, 0x0a,
-      98,   11,   11,   11, 0x0a,
-     119,   11,   11,   11, 0x0a,
-     131,   11,   11,   11, 0x0a,
-     147,   11,   11,   11, 0x0a,
-     159,   11,   11,   11, 0x0a,
-     191,   11,   11,   11, 0x0a,
-     207,   11,   11,   11, 0x0a,
-     250,  240,   11,   11, 0x0a,
-     286,   11,   11,   11, 0x0a,
-     308,   11,   11,   11, 0x0a,
-     323,   11,   11,   11, 0x0a,
-     341,  339,   11,   11, 0x0a,
-     372,   11,   11,   11, 0x0a,
-     409,  405,   11,   11, 0x0a,
+      30,   11,   11,   11, 0x0a,
+      48,   11,   11,   11, 0x0a,
+      65,   11,   11,   11, 0x0a,
+      79,   11,   11,   11, 0x0a,
+     100,   11,   11,   11, 0x0a,
+     112,   11,   11,   11, 0x0a,
+     128,   11,   11,   11, 0x0a,
+     140,   11,   11,   11, 0x0a,
+     172,   11,   11,   11, 0x0a,
+     209,  205,   11,   11, 0x0a,
 
        0        // eod
 };
 
 static const char qt_meta_stringdata_ChatDialog[] = {
-    "ChatDialog\0\0gotReturnPressed()\0"
-    "incomingMessage()\0timedOutWaiting()\0"
-    "preventEntropy()\0processPeer()\0"
-    "checkInfo(QHostInfo)\0sendRoute()\0"
-    "sendBroadcast()\0shareFile()\0"
+    "ChatDialog\0\0incomingMessage()\0"
+    "timedOutWaiting()\0preventEntropy()\0"
+    "processPeer()\0checkInfo(QHostInfo)\0"
+    "sendRoute()\0sendBroadcast()\0shareFile()\0"
     "addFilesForSharing(QStringList)\0"
-    "resendRequest()\0privateMessage(QListWidgetItem*)\0"
-    "msg,buddy\0sendPrivateMessage(QString,QString)\0"
-    "createSearchRequest()\0resendSearch()\0"
-    "startDownload()\0,\0startDownload(QString,QString)\0"
     "requestSeeders(QListWidgetItem*)\0msg\0"
     "replySeeders(QVariantMap)\0"
 };
@@ -148,25 +135,17 @@ void ChatDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         Q_ASSERT(staticMetaObject.cast(_o));
         ChatDialog *_t = static_cast<ChatDialog *>(_o);
         switch (_id) {
-        case 0: _t->gotReturnPressed(); break;
-        case 1: _t->incomingMessage(); break;
-        case 2: _t->timedOutWaiting(); break;
-        case 3: _t->preventEntropy(); break;
-        case 4: _t->processPeer(); break;
-        case 5: _t->checkInfo((*reinterpret_cast< QHostInfo(*)>(_a[1]))); break;
-        case 6: _t->sendRoute(); break;
-        case 7: _t->sendBroadcast(); break;
-        case 8: _t->shareFile(); break;
-        case 9: _t->addFilesForSharing((*reinterpret_cast< QStringList(*)>(_a[1]))); break;
-        case 10: _t->resendRequest(); break;
-        case 11: _t->privateMessage((*reinterpret_cast< QListWidgetItem*(*)>(_a[1]))); break;
-        case 12: _t->sendPrivateMessage((*reinterpret_cast< QString(*)>(_a[1])),(*reinterpret_cast< QString(*)>(_a[2]))); break;
-        case 13: _t->createSearchRequest(); break;
-        case 14: _t->resendSearch(); break;
-        case 15: _t->startDownload(); break;
-        case 16: _t->startDownload((*reinterpret_cast< QString(*)>(_a[1])),(*reinterpret_cast< QString(*)>(_a[2]))); break;
-        case 17: _t->requestSeeders((*reinterpret_cast< QListWidgetItem*(*)>(_a[1]))); break;
-        case 18: _t->replySeeders((*reinterpret_cast< QVariantMap(*)>(_a[1]))); break;
+        case 0: _t->incomingMessage(); break;
+        case 1: _t->timedOutWaiting(); break;
+        case 2: _t->preventEntropy(); break;
+        case 3: _t->processPeer(); break;
+        case 4: _t->checkInfo((*reinterpret_cast< QHostInfo(*)>(_a[1]))); break;
+        case 5: _t->sendRoute(); break;
+        case 6: _t->sendBroadcast(); break;
+        case 7: _t->shareFile(); break;
+        case 8: _t->addFilesForSharing((*reinterpret_cast< QStringList(*)>(_a[1]))); break;
+        case 9: _t->requestSeeders((*reinterpret_cast< QListWidgetItem*(*)>(_a[1]))); break;
+        case 10: _t->replySeeders((*reinterpret_cast< QVariantMap(*)>(_a[1]))); break;
         default: ;
         }
     }
@@ -204,9 +183,9 @@ int ChatDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 19)
+        if (_id < 11)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 19;
+        _id -= 11;
     }
     return _id;
 }
