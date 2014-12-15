@@ -765,6 +765,8 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				sendBlockRequestToSeeders(msg);
 			else if (msg.contains("UploadNotice"))
 				readUploadNotice(msg);
+			else if (msg.contains("SeedReply"))
+				sendBlockRequestToSeeders(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
@@ -907,7 +909,8 @@ void ChatDialog::processSearchReply(QVariantMap request)
 //		Start download
 //////////////////////////////////////////////////////////////
 
-	void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
+void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
+
 	QByteArray fileID = msg.value("MetaFileID").toByteArray();
 	QByteArray blockListHash = msg.value("BlockListHash").toByteArray();
 	QStringList seeders = msg.value("Seeders").toStringList();
@@ -1011,12 +1014,6 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 	}
 }
 
-
-// Take seeder list and start non-sequential download
-void ChatDialog::beginTorrent(QVariantMap msg) {
-
-
-}
 
 
 
