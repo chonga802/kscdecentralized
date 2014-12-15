@@ -96,7 +96,7 @@ static const uint qt_meta_data_ChatDialog[] = {
        6,       // revision
        0,       // classname
        0,    0, // classinfo
-      20,   14, // methods
+      19,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -119,11 +119,10 @@ static const uint qt_meta_data_ChatDialog[] = {
      250,  240,   11,   11, 0x0a,
      286,   11,   11,   11, 0x0a,
      308,   11,   11,   11, 0x0a,
-     327,  323,   11,   11, 0x0a,
-     353,   11,   11,   11, 0x0a,
-     371,  369,   11,   11, 0x0a,
-     402,   11,   11,   11, 0x0a,
-     435,  323,   11,   11, 0x0a,
+     323,   11,   11,   11, 0x0a,
+     341,  339,   11,   11, 0x0a,
+     372,   11,   11,   11, 0x0a,
+     409,  405,   11,   11, 0x0a,
 
        0        // eod
 };
@@ -138,9 +137,8 @@ static const char qt_meta_stringdata_ChatDialog[] = {
     "resendRequest()\0privateMessage(QListWidgetItem*)\0"
     "msg,buddy\0sendPrivateMessage(QString,QString)\0"
     "createSearchRequest()\0resendSearch()\0"
-    "msg\0beginTorrent(QVariantMap)\0"
     "startDownload()\0,\0startDownload(QString,QString)\0"
-    "requestSeeders(QListWidgetItem*)\0"
+    "requestSeeders(QListWidgetItem*)\0msg\0"
     "replySeeders(QVariantMap)\0"
 };
 
@@ -165,11 +163,10 @@ void ChatDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 12: _t->sendPrivateMessage((*reinterpret_cast< QString(*)>(_a[1])),(*reinterpret_cast< QString(*)>(_a[2]))); break;
         case 13: _t->createSearchRequest(); break;
         case 14: _t->resendSearch(); break;
-        case 15: _t->beginTorrent((*reinterpret_cast< QVariantMap(*)>(_a[1]))); break;
-        case 16: _t->startDownload(); break;
-        case 17: _t->startDownload((*reinterpret_cast< QString(*)>(_a[1])),(*reinterpret_cast< QString(*)>(_a[2]))); break;
-        case 18: _t->requestSeeders((*reinterpret_cast< QListWidgetItem*(*)>(_a[1]))); break;
-        case 19: _t->replySeeders((*reinterpret_cast< QVariantMap(*)>(_a[1]))); break;
+        case 15: _t->startDownload(); break;
+        case 16: _t->startDownload((*reinterpret_cast< QString(*)>(_a[1])),(*reinterpret_cast< QString(*)>(_a[2]))); break;
+        case 17: _t->requestSeeders((*reinterpret_cast< QListWidgetItem*(*)>(_a[1]))); break;
+        case 18: _t->replySeeders((*reinterpret_cast< QVariantMap(*)>(_a[1]))); break;
         default: ;
         }
     }
@@ -207,9 +204,9 @@ int ChatDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 20)
+        if (_id < 19)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 20;
+        _id -= 19;
     }
     return _id;
 }

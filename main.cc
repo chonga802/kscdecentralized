@@ -448,7 +448,8 @@ void ChatDialog::readBroadcast(QVariantMap msg)
 			for (int i = 0; i < padsize; i++) {
 				pad = pad + " ";
 			}
-			QString display = mapIter.key() + pad + QString::number(mapIter.value().toInt());
+			pad = pad + "\t";
+			QString display = QString::number(mapIter.value().toInt()) + "\t" + mapIter.key();
 			dlList->addItem(new QListWidgetItem(display));
 		}
 	}
@@ -456,8 +457,8 @@ void ChatDialog::readBroadcast(QVariantMap msg)
 
 void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 {
-	QStringList l = (clicked->text()).split(" ");
-	QString file = l[0];
+	QStringList l = (clicked->text()).split("\t");
+	QString file = l[1];
 
 	int index = dlList->row(clicked);
 	dlList->takeItem(index);
@@ -491,7 +492,9 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 
 		TrackedFileMetadata *found;
 		bool blergh = false;
+		int t = -1;
 		foreach(TrackedFileMetadata meta, filesTracking) {
+			t++;
 			if (meta.fileName == file) {
 				found = &meta;
 				blergh = true;
@@ -502,6 +505,7 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 			qDebug() << "info not in trackedfilemetadataasfes";
 			return;
 		}
+
 
 		QVariantMap reply;
 		reply.insert(DEST, target);
@@ -514,10 +518,27 @@ void ChatDialog::requestSeeders(QListWidgetItem *clicked)
 
 		qDebug() << "I HAVE THE SEEDERS ALREADYYYY";
 		qDebug() << "Passing to meeee";
-		qDebug() << reply;
+	//	qDebug() << reply;
 	//	sendBlockRequestToSeeders(reply);
 
-		// If we are not seeding already, add us to list of seeders
+	// If we are not seeding already, add us to list of seeders
+		qDebug() << "Updating Seed List";
+		QStringList intermediary = found->seeders;
+		qDebug() << intermediary;
+		if (!intermediary.contains(myOrigin)) {
+			intermediary.append(myOrigin);
+			TrackedFileMetadata moreSeeds(found->fileName,
+				found->blockCount,
+				found->blocklistHash,
+				found->metaHash,
+				intermediary[0]);
+			for (int i = 1; i < intermediary.length(); i++) {
+				moreSeeds.seeders.append(intermediary[i]);
+			}
+			moreSeeds.seederCount = intermediary.length();
+			filesTracking.replace(t, moreSeeds);
+			qDebug() << "File " + filesTracking[t].fileName + " has new seeds " << filesTracking[t].seeders;
+		}
 	}
 }
 
@@ -532,7 +553,9 @@ void ChatDialog::replySeeders(QVariantMap msg)
 
 		TrackedFileMetadata *found;
 		bool blergh = false;
+		int t = -1;
 		foreach(TrackedFileMetadata meta, filesTracking) {
+			t++;
 			if (meta.fileName == file) {
 				found = &meta;
 				blergh = true;
@@ -560,7 +583,27 @@ void ChatDialog::replySeeders(QVariantMap msg)
 		// Then add them as a seeder, if they are not already
 		
 		qDebug() << "Sending along data ";
-		qDebug() << reply;
+	//	qDebug() << reply;
+
+		QStringList intermediary = found->seeders;
+		if (!intermediary.contains(requestor)) {
+			intermediary.append(requestor);
+
+			TrackedFileMetadata moreSeeds(found->fileName,
+				found->blockCount,
+				found->blocklistHash,
+				found->metaHash,
+				intermediary[0]);
+
+			for (int i = 1; i < intermediary.length(); i++) {
+				moreSeeds.seeders.append(intermediary[i]);
+			}
+			moreSeeds.seederCount = intermediary.length();
+
+			filesTracking.replace(t, moreSeeds);
+
+			qDebug() << "File " + filesTracking[t].fileName + " has new seeds " << filesTracking[t].seeders;
+		}
 	}
 	// Otherwise
 	else {
@@ -765,8 +808,6 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 				sendBlockRequestToSeeders(msg);
 			else if (msg.contains("UploadNotice"))
 				readUploadNotice(msg);
-			else if (msg.contains("SeedReply"))
-				sendBlockRequestToSeeders(msg);
 		}
 		// must forward
 		else if (msg.value(HOP_LIMIT).toInt() > 0) {
