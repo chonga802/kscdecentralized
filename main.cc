@@ -26,6 +26,10 @@
 
 #include "DownloadWindow.hh"
 
+// Delay ms (for demo/throttling/reality purposes)
+int DELAY_LENGTH = 10;
+int UNLOCKSPEED = 100;
+
 QString CHAT_TEXT = "ChatText";
 QString ORIGIN = "Origin";
 QString SEQNO = "SeqNo";
@@ -168,7 +172,7 @@ void InitDialog::loadID() {
 		progressLabel->setText(newID);
 		setLayout(fullLayout);
 	//}
-		if (rand() % 10 == 0)
+		if (rand() % UNLOCKSPEED == 0)
 		QCoreApplication::processEvents();
 
 		if (thingy == 42) {
@@ -469,11 +473,11 @@ void ChatDialog::readBroadcast(QVariantMap msg)
 			foreach(FileMetadata data, filesForDL) {
 				if (data.fileName == mapIter.key())
 					uploaded = true;
-			}		
+			}
 			if (uploaded)
 				continue;
 
-			availableFiles[mapIter.key()] = origin;
+			availableFiles[mapIter.key()] = mapIter.value();
 			QString pad = " ";
 			int padsize = 40 - mapIter.key().size();// - QString::number(mapIter.value().toInt()).size();
 
@@ -483,7 +487,45 @@ void ChatDialog::readBroadcast(QVariantMap msg)
 			pad = pad + "\t";
 			QString display = QString::number(mapIter.value().toInt()) + "\t" + mapIter.key();
 			dlList->addItem(new QListWidgetItem(display));
-		}
+		}/*
+		else if (availableFiles[mapIter.key()].toInt() < mapIter.value().toInt()) {
+
+			bool uploaded = false;
+			foreach(FileMetadata data, filesForDL) {
+				if (data.fileName == mapIter.key())
+					uploaded = true;
+			}
+			if (uploaded)
+				continue;
+
+			int c = dlList->count();
+		    for(int row = 0; row < c; row++) {
+		    	QListWidgetItem *item = dlList->takeItem(row);
+
+				QStringList l = (item->text()).split("\t");
+				QString filen = l[1];
+				if (filen == mapIter.key()) {
+
+					availableFiles[mapIter.key()] = mapIter.value();
+
+					QString pad = " ";
+					int padsize = 40 - mapIter.key().size();// - QString::number(mapIter.value().toInt()).size();
+
+					for (int i = 0; i < padsize; i++) {
+						pad = pad + " ";
+					}
+					pad = pad + "\t";
+					QString display = QString::number(mapIter.value().toInt()) + "\t" + mapIter.key();
+					
+					item->setText(display);
+					dlList->addItem(item);
+
+				}
+				    
+		    }
+
+
+		}*/
 	}
 }
 
@@ -1015,9 +1057,9 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 				QCoreApplication::processEvents();
 			}
 
-
-			Sleeper::msleep(100);
 			sendBlockRequest(blockNum, seeder, fileID, blockListHash);
+			Sleeper::msleep(DELAY_LENGTH);
+
 		}
 		//else, save the new file you have acquired to desktop
 		else{

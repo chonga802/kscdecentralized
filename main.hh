@@ -163,7 +163,7 @@ private:
 
 	// Files this node is tracking
 	QList<TrackedFileMetadata> filesTracking;
-	QMap<QString, QString> availableFiles;
+	QVariantMap availableFiles;
 	
 	QHash<QString, QPair<QString, QByteArray> > wantToDL;
 	QList<QString> foundForDL;
