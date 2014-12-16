@@ -26,9 +26,12 @@
 
 #include "DownloadWindow.hh"
 
-// Delay ms (for demo/throttling/reality purposes)
+// Delay ms (for demo/throttling/reality purposes).
+// Lower to 0 for fastest operation, 10-100 for nice display.
 int DELAY_LENGTH = 10;
-int UNLOCKSPEED = 100;
+// Speed of ID authentication for demo purposes.  >1000 for
+// speed, ~20 for good display.
+int UNLOCKSPEED = 1000;
 
 QString CHAT_TEXT = "ChatText";
 QString ORIGIN = "Origin";
