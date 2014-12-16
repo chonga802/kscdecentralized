@@ -141,7 +141,6 @@ private:
 	QLineEdit *fileSearch;
 	QListWidget *dlList;
 	QLineEdit *peerEntry;
-	QListWidget *privateList;
 	QListWidget *uploadList;
 	quint32 seqNo;
 	quint32 failedDLNum;
