@@ -21,7 +21,6 @@
 #include "main.hh"
 #include "NetSocket.hh"
 #include "Peer.hh"
-#include "SageTextEdit.hh"
 #include "FileMetadata.hh"
 #include "TrackedFileMetadata.hh"
 
@@ -263,6 +262,7 @@ ChatDialog::ChatDialog(QStringList args)
 	wantedSeqNos->insert(myOrigin, seqNo);
 	readMsgs = new QMap<quint32, QVariant>();
 
+	// TODO: remove this, support starting network with friends entered
 	for (int i = sock.getPortMin(); i <= sock.getPortMax(); i++)
 		if (sock.getMyPort() != i)
 			peers.append(Peer(QHostAddress(QHostAddress::LocalHost), i));
