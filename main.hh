@@ -195,6 +195,7 @@ private:
 	QVariantMap repTracking;
 	bool excludeSeeders;
 	QStringList topSeeders;
+	int currentBlockCount;
 };
 
 #endif // PEERSTER_MAIN_HH

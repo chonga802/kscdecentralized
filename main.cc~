@@ -21,6 +21,7 @@
 #include "main.hh"
 #include "NetSocket.hh"
 #include "Peer.hh"
+#include "SageTextEdit.hh"
 #include "FileMetadata.hh"
 #include "TrackedFileMetadata.hh"
 
@@ -70,9 +71,6 @@ void Visualizer::paintEvent(QPaintEvent *)
     	int y = j*50;
     	if (blockPos[c] == 0) {
 		    painter.setBrush(Qt::darkRed);
-    	}
-    	else if (blockPos[c] == 10) {
-		    painter.setBrush(Qt::yellow);
     	}
     	else if (blockPos[c]%3 == 0) {
 		    painter.setBrush(Qt::darkGreen);
@@ -265,7 +263,6 @@ ChatDialog::ChatDialog(QStringList args)
 	wantedSeqNos->insert(myOrigin, seqNo);
 	readMsgs = new QMap<quint32, QVariant>();
 
-	// TODO: remove this, support starting network with friends entered
 	for (int i = sock.getPortMin(); i <= sock.getPortMax(); i++)
 		if (sock.getMyPort() != i)
 			peers.append(Peer(QHostAddress(QHostAddress::LocalHost), i));
@@ -831,7 +828,6 @@ void ChatDialog::sendBlockRequestToSeeders(QVariantMap msg){
 	currentTracker = msg.value(ORIGIN).toString();
 	QVariantMap seederReps = msg.value("SeederRep").toMap();
 
-	currentBlockCount = blockCount;
 /*	topSeeders.clear();
 	excludeSeeders = (seederReps.size() >= 2);
 	if (excludeSeeders) {
@@ -943,7 +939,8 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 	QByteArray data = msg.value("FileBlock").toByteArray();
 	int blockNum = msg.value("BlockNum").toInt();
 
-	qDebug()<<"process bloock reply from " + seeder;
+	qDebug()<<"process block reply from " + seeder;
+
 	if (repReport.contains(seeder))
 		repReport[seeder] = repReport[seeder].toInt()+1;
 	else
@@ -957,33 +954,19 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 		qDebug()<<"updated blocksLeft"<<blocksLeft;
 		//store file in blocksAcquired
 		blocksAcquired.insert(blockNum, data);
+
 		if (!topSeeders.contains(seeder))
 			topSeeders.append(seeder);
 
 		int color = topSeeders.indexOf(seeder)+2;
 
-		if (currentBlockCount >= 100) {
-			if (blockNum >= 0 && blockNum < 100) {
-				visual->blockPos[blockNum] = color;
-				visual->update();
-				visual->show();
-				QCoreApplication::processEvents();
-			}
-		}
-		else {
-			if (blockNum > currentBlockCount)
-				qDebug() << "WRONG WRONG WRONG";
-			int segment = (100+currentBlockCount-1)/currentBlockCount;
-			qDebug() << "segment size = " + QString::number(segment);
-
-			for (int i = segment*blockNum; (i < segment*(blockNum+1)) && (i < 100); i++) {
-				visual->blockPos[i] = color;
-			}
+		if (blockNum >= 0 && blockNum < 100) {
+			visual->blockPos[blockNum] = color;
 			visual->update();
 			visual->show();
 			QCoreApplication::processEvents();
+
 		}
-			
 
 		//if still have blocks left you need, send block request to seeder
 		int numBlocksLeft = blocksLeft.length();
@@ -992,38 +975,14 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 			int blockNum = blocksLeft.at(rand() % numBlocksLeft);
 			//send block request to seeder
 
-			// YELLOW!
-			if (currentBlockCount >= 100) {
-				if (blockNum >= 0 && blockNum < 100) {
-					visual->blockPos[blockNum] = 10;
-					visual->update();
-					visual->show();
-					QCoreApplication::processEvents();
-				}
-			}
-			else {
-				if (blockNum > currentBlockCount)
-					qDebug() << "WRONG WRONG WRONG";
-				int segment = (100+currentBlockCount-1)/currentBlockCount;
-				qDebug() << "segment size = " + QString::number(segment);
-
-				for (int i = segment*blockNum; (i < segment*(blockNum+1)) && (i < 100); i++) {
-					visual->blockPos[i] = 10;
-				}
-				visual->update();
-				visual->show();
-				QCoreApplication::processEvents();
-			}
-
-
-			Sleeper::msleep(100);
+			Sleeper::msleep(10);
 			sendBlockRequest(blockNum, seeder, fileID, blockListHash);
 		}
 		//else, save the new file you have acquired to desktop
 		else{
 			//concatenate file blocks in blocksAcquired into single block
 			QByteArray fileBlocks;
-			for(int i = 0; i < blocksAcquired.size(); i++) {
+			for(int i = 0; i < blocksAcquired.size(); i++){
 				QByteArray block = blocksAcquired.value(i);
 				fileBlocks.append(block);
 			}
