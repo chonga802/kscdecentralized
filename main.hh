@@ -86,9 +86,6 @@ public:
 	void readRumor(QVariantMap, QHostAddress, quint16);
 	void checkStatus(QVariantMap, QHostAddress, quint16);
 	void sendStatus(QHostAddress, quint16);
-	void processSearchRequest(QVariantMap);
-	void processSearchReply(QVariantMap);
-	void startNextDownload();
 
 	void readBroadcast(QVariantMap msg);
 	void readUploadNotice(QVariantMap msg);
@@ -105,14 +102,12 @@ public:
 
 	void updateDSDV(QString, QHostAddress, quint16);
 
-	// For non-seq downloads
+	// For BitTorrent dl
 	void processBlockReply(QVariantMap msg);
 	void sendBlockReply(QVariantMap msg);
 	void sendBlockRequest(int blockNum, QString seeder, QByteArray fileID, QByteArray blockListHash);
 	void sendBlockRequestToSeeders(QVariantMap msg);
-	void startNonSeqDL();
-	void processNonSeqBlockResponse(QVariantMap response);
-	void finishNonSeqDL();
+
 	void sendRepReport() ;
 	void readRepReport(QVariantMap msg);
 
@@ -141,7 +136,6 @@ private:
 	QLineEdit *fileSearch;
 	QListWidget *dlList;
 	QLineEdit *peerEntry;
-	QListWidget *privateList;
 	QListWidget *uploadList;
 	quint32 seqNo;
 	quint32 failedDLNum;

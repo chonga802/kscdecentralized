@@ -115,7 +115,6 @@ InitDialog::InitDialog() {
 	fullLayout->addWidget(goButton,1,0);
 
 	setLayout(fullLayout);
-		qDebug() << "asdfasdf";
 
 	connect(goButton, SIGNAL(clicked()), this, SLOT(loadID()));
 
@@ -217,19 +216,14 @@ ChatDialog::ChatDialog(QStringList args)
 	dlList = new QListWidget(this);
 	QLabel* dlLabel = new QLabel("Torrents available:", dlList);
 
-	privateList = new QListWidget();
-	QLabel* privateListLabel = new QLabel("Seeding:");
+	QLabel* seedingLabel = new QLabel("Seeding:");
 	uploadList = new QListWidget(this);
 
 	// Lay out the widgets to appear in the main window.
 	QGridLayout *layout = new QGridLayout();
 
-//	QVBoxLayout *privMsgLayout = new QVBoxLayout();
-//	privMsgLayout->addWidget(privateListLabel);
-//	privMsgLayout->addWidget(uploadList);
-
 	QVBoxLayout *textAndPeers = new QVBoxLayout();
-	textAndPeers->addWidget(privateListLabel);
+	textAndPeers->addWidget(seedingLabel);
 	textAndPeers->addWidget(uploadList);
 	textAndPeers->addWidget(shareButton);
 
@@ -1328,23 +1322,11 @@ QByteArray ChatDialog::serializeMsg(QVariantMap msg)
 void ChatDialog::updateDSDV(QString origin, QHostAddress sender, quint16 senderPort)
 {
 	if (origin != myOrigin) {
+
+		if (!dsdv.contains(origin))
+			qDebug() << "New friend " + origin;
+
 		dsdv.insert(origin, QPair<QHostAddress, quint16>(sender, senderPort));
-
-		// iterate through list of private peers, if origin is not present
-		// then add it to the end of the list
-		// code taken from stackoverflow at:
-		// http://stackoverflow.com/questions/5496827/in-qlistwidget-how-do-
-		//		i-check-if-qlistwidgetitem-already-exists-based-on-its-dat
-		bool found = false;
-		for (int i = 0; i < privateList->count(); i++)
-			if (privateList->item(i)->data(Qt::DisplayRole).toString() == origin) {
-				found = true;
-				break;
-			}
-		if (!found)
-			privateList->addItem(new QListWidgetItem(origin));
-
-		qDebug() << "New friend " + origin;
 
 		// If new predecessor in Chord Table
 		if (chord->updateFingers(origin)) {
