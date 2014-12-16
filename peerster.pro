@@ -10,5 +10,5 @@ QT += network
 CONFIG += crypto
 
 # Input
-HEADERS += main.hh NetSocket.hh Peer.hh SageTextEdit.hh PrivateMessageWindow.hh FileMetadata.hh TrackedFileMetadata.hh DownloadWindow.hh ChordDHT.hh
-SOURCES += main.cc NetSocket.cc Peer.cc SageTextEdit.cc PrivateMessageWindow.cc FileMetadata.cc TrackedFileMetadata.cc DownloadWindow.cc ChordDHT.cc
+HEADERS += main.hh NetSocket.hh Peer.hh FileMetadata.hh TrackedFileMetadata.hh DownloadWindow.hh ChordDHT.hh
+SOURCES += main.cc NetSocket.cc Peer.cc FileMetadata.cc TrackedFileMetadata.cc DownloadWindow.cc ChordDHT.cc
