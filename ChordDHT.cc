@@ -63,7 +63,7 @@ bool ChordDHT::updateFingers(QString peerID) {
 	// check if new peer is your immediate predecessor
 	if (predLoc == myLoc) {
 		predLoc = peerLoc;
-		predID = myID;
+		predID = peerID;
 	}
 	else if (assertOrder(predLoc, peerLoc, myLoc)) {
 		predLoc = peerLoc;
