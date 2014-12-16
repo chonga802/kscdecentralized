@@ -295,12 +295,12 @@ ChatDialog::ChatDialog(QStringList args)
 
 	routeTimer = new QTimer(this);
 	connect(routeTimer, SIGNAL(timeout()), this, SLOT(sendRoute()));
-	routeTimer->start(60000);
+	routeTimer->start(10000);
 
 	// Timer to broadcast list of tracked files
 	broadcastTimer = new QTimer(this);
 	connect(broadcastTimer, SIGNAL(timeout()), this, SLOT(sendBroadcast()));
-	broadcastTimer->start(10000);
+	broadcastTimer->start(3000);
 
 	sendRoute();
 }
