@@ -113,6 +113,8 @@ InitDialog::InitDialog() {
 
 	connect(goButton, SIGNAL(clicked()), this, SLOT(loadID()));
 
+	idEntry->setFocus();
+
 }
 
 void InitDialog::loadID() {
@@ -190,10 +192,7 @@ ChatDialog::ChatDialog(QStringList args)
 		exit(1);
 
 	qsrand(QTime::currentTime().msec()+1);
-	// Hack to construct unique origin identifier
-//	myOrigin = "SAGE_";
-//	myOrigin.append(QString::number((1+QTime::currentTime().msec())
-//			* qrand()%1000000));
+
 	if (args.size() > 0)
 		myOrigin = args[0];
 	else
@@ -205,25 +204,12 @@ ChatDialog::ChatDialog(QStringList args)
 	chord = new ChordDHT(myOrigin);
 
 	setWindowTitle(myOrigin + " @Port:" + QString::number(sock.getMyPort()));
-	// Read-only text box where we display messages from everyone.
-	// This widget expands both horizontally and vertically.
-//	textview = new QTextEdit(this);
-//	textview->setReadOnly(true);
-
-	// Exercise 2: SageTextEdit subclasses QTextEdit for multi-line text entry.
-	userInput = new SageTextEdit();
 
 	fileSearch = new QLineEdit();
-//	QLabel* fileSearchLabel = new QLabel("Enter file to search for:", fileSearch);
 	shareButton = new QPushButton("Share file", this);
 	shareButton->setAutoDefault(false);
-//	dlButton = new QPushButton("Download file", this);
-//	dlButton->setAutoDefault(false);
 	dlList = new QListWidget(this);
 	QLabel* dlLabel = new QLabel("Torrents available:", dlList);
-
-	peerEntry = new QLineEdit();
-//	QLabel* peerLabel = new QLabel("Add peer:", peerEntry);
 
 	privateList = new QListWidget();
 	QLabel* privateListLabel = new QLabel("Seeding:");
@@ -231,10 +217,6 @@ ChatDialog::ChatDialog(QStringList args)
 
 	// Lay out the widgets to appear in the main window.
 	QGridLayout *layout = new QGridLayout();
-
-//	QHBoxLayout *peerEntryLayout = new QHBoxLayout();
-//	peerEntryLayout->addWidget(peerLabel);
-//	peerEntryLayout->addWidget(peerEntry);
 
 //	QVBoxLayout *privMsgLayout = new QVBoxLayout();
 //	privMsgLayout->addWidget(privateListLabel);
@@ -244,7 +226,6 @@ ChatDialog::ChatDialog(QStringList args)
 	textAndPeers->addWidget(privateListLabel);
 	textAndPeers->addWidget(uploadList);
 	textAndPeers->addWidget(shareButton);
-//	textAndPeers->addLayout(peerEntryLayout);
 
 //	QHBoxLayout *files = new QHBoxLayout();
 //	files->addWidget(dlButton);
@@ -265,9 +246,6 @@ ChatDialog::ChatDialog(QStringList args)
 	QVBoxLayout *fileEntry = new QVBoxLayout();
 	fileEntry->addWidget(dlLabel);
 	fileEntry->addWidget(dlList);
-//	fileEntry->addWidget(fileSearchLabel);
-//	fileEntry->addWidget(fileSearch);
-//	fileEntry->addLayout(files);
 
 	// resize
 	layout->addLayout(textAndPeers, 1, 0);
@@ -280,7 +258,6 @@ ChatDialog::ChatDialog(QStringList args)
 
 	seqNo = 1;
 	downloading = false;
-	nonSeqDL = false;
 
 	wantedSeqNos = new QMap<QString, quint32>();
 	wantedSeqNos->insert(myOrigin, seqNo);
@@ -292,16 +269,9 @@ ChatDialog::ChatDialog(QStringList args)
 
 //	processArgs(args);
 
-	// Register a callback on the userInput's returnPressed signal
-	// so that we can send the message entered by the user.
-//	connect(userInput, SIGNAL(sageReturnPressed()),
-//			this, SLOT(gotReturnPressed()));
 	// Register incoming message so we can process accordingly
 	connect(&sock, SIGNAL(readyRead()),
 			this, SLOT(incomingMessage()));
-	// Register newly IP/Port or DNS origin/port to message
-//	connect(peerEntry, SIGNAL(returnPressed()),
-//			this, SLOT(processPeer()));
 	// Register button click to open file selection dialog box
 	connect(shareButton, SIGNAL(clicked()),
 			this, SLOT(shareFile()));
@@ -329,9 +299,6 @@ ChatDialog::ChatDialog(QStringList args)
 	broadcastTimer->start(10000);
 
 	sendRoute();
-
-	// Exercise 1: We wish to have focus initially on the text entry box.
-	userInput->setFocus();
 }
 
 
@@ -400,12 +367,12 @@ void ChatDialog::addFilesForSharing(QStringList files)
 			msg.insert("MetaHash", metaHash);
 			msg.insert(DEST, target);
 
-			QPair<QHostAddress, quint16> dest = dsdv.value(target);
 
 			if (target == myOrigin) {
 				readUploadNotice(msg);
 			}
 			else {
+				QPair<QHostAddress, quint16> dest = dsdv.value(target);
 				qDebug() << "pass responsibility for file to " + target;
 				send(serializeMsg(msg), Peer(dest.first, dest.second));
 			}
@@ -641,12 +608,9 @@ void ChatDialog::replySeeders(QVariantMap msg)
 		QPair<QHostAddress, quint16> dest = dsdv.value(requestor);
 		send(serializeMsg(reply), Peer(dest.first, dest.second));
 
-		// TODO: Then add them as a seeder, if they are not already
-		
 		qDebug() << "Sending along data about " + file + " to " + requestor + " at " + QString::number(dest.second);
 		qDebug() << "Msg target = " + reply[DEST].toString();
 		qDebug() << reply;
-	//	qDebug() << reply;
 
 		QStringList intermediary = found->seeders;
 		if (!intermediary.contains(requestor)) {
@@ -798,8 +762,6 @@ void ChatDialog::processMessage(QByteArray bytes, QHostAddress sender, quint16 s
 	QVariantMap msg;
 	QDataStream inStream(&bytes, QIODevice::ReadWrite);
 	inStream >> msg;
-//	qDebug() << "message in";
-//	qDebug() << msg;
 
 	if (!peers.contains(Peer(sender, senderPort)))
 		peers.append(Peer(sender, senderPort));
@@ -1048,7 +1010,8 @@ void ChatDialog::processBlockReply(QVariantMap msg){
 	}
 }
 
-
+/////////////////////////////////////////////////////////
+//	REPUTATION
 //////////////////////////////////////////////////////////
 
 void ChatDialog::sendRepReport() 
@@ -1089,9 +1052,6 @@ void ChatDialog::readRumor(QVariantMap rumor, QHostAddress sender, quint16 sende
 	QString rumorOrigin = rumor.value(ORIGIN).toString();
 	quint32 rumorSeqNo = rumor.value(SEQNO).toInt();
 	int rumorSize = rumor.size();
-
-	//qDebug() << "RUMOR FOUND from: " << rumorOrigin << " #" << rumorSeqNo;
-	//qDebug() << "  At addr, port: " << sender << ", " << senderPort;
 
 	if (rumorSeqNo < 1 || rumorOrigin == QString("")) {
 		qDebug() << "INVALID RUMOR: " << rumor;

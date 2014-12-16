@@ -15,7 +15,6 @@
 
 #include "NetSocket.hh"
 #include "Peer.hh"
-#include "SageTextEdit.hh"
 #include "FileMetadata.hh"
 #include "TrackedFileMetadata.hh"
 
@@ -132,9 +131,6 @@ public slots:
 	void requestSeeders(QListWidgetItem*);
 	void replySeeders(QVariantMap msg);
 
-	// For non-seq downloads
-//	void requestNonSeqBlocks();
-
 private:
 	QString myOrigin;
 	NetSocket sock;
@@ -171,12 +167,6 @@ private:
 	
 	QHash<QString, QPair<QString, QByteArray> > wantToDL;
 	QList<QString> foundForDL;
-
-	// for non-seq dl
-	QList<quint32> dlBlocksWanted;
-	QMap<quint32, QByteArray> dlBlocks;
-	bool nonSeqDL;
-	QStringList seeders;
 
 	QVariantMap lastSearch;
 	QTimer *searchTimer;
